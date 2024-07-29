@@ -30,7 +30,7 @@
 
   <ItemGroup>
     <PackageReference Include="HtmlAgilityPack" Version="1.11.61" />
-    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.41.0" />
+    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.42.0" />
     <PackageReference Include="NLog" Version="5.3.2" />
     <PackageReference Include="RxTelegram.Bot" Version="7.4.0" />
     <PackageReference Include="Rystem.OpenAi" Version="3.3.12" />
