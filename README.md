@@ -1,37 +1,121 @@
-# ChatGPT Telegram Bot 
-[![.NET](https://github.com/AleksandrFurmenkovOfficial/TelegramChatGPT/actions/workflows/dotnet.yml/badge.svg)](https://github.com/AleksandrFurmenkovOfficial/TelegramChatGPT/actions/workflows/dotnet.yml)
-[![CodeQL](https://github.com/AleksandrFurmenkovOfficial/TelegramChatGPT/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/AleksandrFurmenkovOfficial/TelegramChatGPT/actions/workflows/github-code-scanning/codeql)
+# ChatWithAI Telegram Bot
+
+[![.NET Build Status](https://github.com/AleksandrFurmenkovOfficial/ChatWithAI/actions/workflows/dotnet.yml/badge.svg)](https://github.com/AleksandrFurmenkovOfficial/ChatWithAI/actions/workflows/dotnet.yml)
+[![CodeQL Security Scan](https://github.com/AleksandrFurmenkovOfficial/ChatWithAI/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/AleksandrFurmenkovOfficial/ChatWithAI/actions/workflows/github-code-scanning/codeql)
 
 ## Overview
-This repository contains the source code for a free telegram bot that integrates with ChatGPT. The bot is designed to provide user a variety of functionalities including image recognition, image generation, internet search for answering simple queries, and a note-taking feature to record notes between dialogues.
 
-## Features
-- **Image Recognition:** The bot can analyze images sent by users and provide context or information about the content of the image.
-- **Image Generation:** Users can request the bot to generate images based on specific prompts or descriptions.
-- **Internet Search:** The bot can search the internet to find answers to simple questions posed by users.
-- **Note-Taking:** The bot includes a personal diary feature where users can store notes, reminders, or any text for future reference between dialogues.
-- **Different modes:** The bot can switch between different modes: general mode, teacher mode, etc.
+This repository hosts the source code for a versatile Telegram bot powered by large language models (LLMs). It allows users to interact with AI for various tasks, including image analysis, image creation, web searches for quick answers, and maintaining notes across conversations.
+
+## Key Features
+
+*   **🤖 AI Interaction:** Chat directly with powerful AI models.
+*   **🖼️ Image Recognition:** Analyze images sent to the bot to understand their content.
+*   **🎨 Image Generation:** Create images based on user descriptions or prompts.
+*   **🌐 Internet Search:** Fetch answers to simple questions using web search capabilities.
+*   **📝 Note-Taking:** A personal diary feature to save notes, reminders, or text snippets between chat sessions.
+*   **⚙️ Multiple Modes:** Switch between different interaction modes like 'general', 'teacher', etc., to tailor the AI's responses.
+*   **✨ Choice of AI Provider:** Supports both Anthropic (Claude) and Google (Gemini) models.
 
 ## Getting Started
 
-**From sources:**
-1. Clone the Repository
-2. Install the .NET 8 SDK & runtime for your operating system from https://dotnet.microsoft.com/en-us/download/dotnet/8.0
-3. Build the application
-4. Set up these variables:
-```
-OPENAI_API_KEY: For AI functionalities.
-TELEGRAM_BOT_KEY: To connect your bot.
-TELEGRAM_ADMIN_USER_ID: (Optional) For administrative privileges.
-```
-6. Run the application, chat via your bot with ChatGPT
+Follow these steps to get your own instance of the bot running.
 
-**From binaries:**
-1. Download binaries from latest release
-2. Set up these variables:
-```
-OPENAI_API_KEY: For AI functionalities.
-TELEGRAM_BOT_KEY: To connect your bot.
-TELEGRAM_ADMIN_USER_ID: (Optional) For administrative privileges.
-```
-3. Run the application, chat via your bot with ChatGPT
+### Prerequisites
+
+*   [.NET 8 SDK and Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0): Ensure you have the necessary .NET version installed on your system.
+*   **Telegram Bot Token:** Obtain a token from BotFather on Telegram.
+*   **AI Provider API Key:** Get an API key from either Anthropic or Google, depending on which AI you plan to use.
+
+### Installation
+
+You can either build the bot from the source code or use pre-compiled binaries.
+
+**Option 1: Build from Source**
+
+1.  **Clone the Repository:**
+    ```bash
+    git clone https://github.com/AleksandrFurmenkovOfficial/ChatWithAI.git
+    cd ChatWithAI
+    ```
+2.  **Build the Application:**
+    ```bash
+    dotnet build --configuration Release
+    ```
+    The executable will typically be found in `bin/Release/net8.0/`.
+
+**Option 2: Use Pre-compiled Binaries**
+
+1.  Download the latest release binaries from the [Releases](https://github.com/AleksandrFurmenkovOfficial/ChatWithAI/releases) page.
+2.  Extract the downloaded archive.
+
+### Configuration
+
+Configure the bot using environment variables before running it.
+
+**Core Settings:**
+
+*   `TELEGRAM_BOT_KEY`: **(Required)** Your Telegram bot token obtained from BotFather.
+*   `AI_PROVIDER`: **(Required)** Specify the AI provider to use. Set to either `"anthropic"` or `"google"`.
+*   `TELEGRAM_ADMIN_USER_ID`: (Optional) Your Telegram User ID for administrative commands or privileges.
+*   `CHAT_CACHE_ALIVE_IN_MINUTES`: (Optional) Duration in minutes before a chat session context is reset for non-premium users. Defaults to `"5"`.
+
+**AI Provider Settings (Configure *one* set based on `AI_PROVIDER`):**
+
+*   **If `AI_PROVIDER` is `"anthropic"`:**
+    *   `ANTHROPIC_API_KEY`: **(Required)** Your Anthropic API key.
+    *   `ANTHROPIC_MODEL`: **(Required)** The model to use: `"claude-3-7-sonnet-20250219"`.
+    *   `ANTHROPIC_TEMPERATURE`: (Optional) Controls randomness (e.g., `"0.4"`). Default value might apply if unset.
+    *   `ANTHROPIC_MAX_TOKENS`: (Optional) Maximum tokens for the response (e.g., `"8192"`). Default value might apply if unset.
+
+*   **If `AI_PROVIDER` is `"google"`:**
+    *   `GOOGLE_API_KEY`: **(Required)** Your Google AI API key.
+    *   `GOOGLE_MODEL`: **(Required)** The model to use. Choose from `"gemini-2.5-pro-preview-03-25"` or `"gemini-2.5-flash-preview-04-17"`.
+    *   `GOOGLE_TEMPERATURE`: (Optional) Controls randomness (e.g., `"0.4"`). Default value might apply if unset.
+    *   `GOOGLE_MAX_TOKENS`: (Optional) Maximum tokens for the response (e.g., `"65536"`). Default value might apply if unset.
+
+*Note: Ensure you set the required variables for the AI provider you selected.*
+
+**Storage Paths:**
+
+The application uses several folders for storing data. Default paths are relative to the executable's location, but can be overridden using environment variables.
+
+*   **AI Memory (`MEMORY_FOLDER`)**
+    *   **Purpose:** Stores conversation history and context for each user session.
+    *   **Default Path:** `../AiMemory`
+    *   **Permissions:** The application needs **read, write, and create file** permissions within this directory to manage session data.
+    *   **Environment Variable:** `MEMORY_FOLDER`
+
+*   **Modes (`MODES_FOLDER`)**
+    *   **Purpose:** Contains definitions for the available AI interaction modes (e.g., 'teacher', 'translator'). This folder is treated as **read-only** by the application during runtime.
+    *   **Default Path:** `Modes` (within the executable's directory)
+    *   **Content:** Place plain text files (`.txt`) here, where each file's name represents a mode, and its content defines the initial prompt or instructions for that mode.
+    *   **Implementation:** Ensure you have corresponding command classes (similar to `SetBaseMode.cs`) implemented to allow users to switch to these defined modes.
+    *   **Environment Variable:** `MODES_FOLDER`
+
+*   **Access Control (`ACCESS_FOLDER`)**
+    *   **Purpose:** Manages user access permissions. This folder is treated as **read-only** by the application during runtime.
+    *   **Default Path:** `../Access`
+    *   **Content:**
+        *   `ids.txt` (Optional): If present, contains a list of Telegram User IDs (one ID per line) allowed to interact with the bot. If this file doesn't exist or is empty, access might be open (depending on implementation).
+        *   `premium_ids.txt` (Optional): If present, contains a list of Telegram User IDs (one ID per line) designated as premium users. For these users, the chat session cache (`CHAT_CACHE_ALIVE_IN_MINUTES`) is ignored, and the full conversation context is preserved indefinitely within the `MEMORY_FOLDER`.
+    *   **Environment Variable:** `ACCESS_FOLDER`
+
+*Make sure these folders exist with the correct structure and content before running the application, and ensure the application has the necessary permissions, especially for the `MEMORY_FOLDER`.*
+
+### Running the Bot
+
+1.  Set the environment variables defined in the Configuration section (Core, AI Provider, and optionally Storage Paths). How you set them depends on your operating system (e.g., using `export` on Linux/macOS, `set` or System Properties on Windows, or a `.env` file if supported by your setup).
+2.  Ensure the directories specified by `MODES_FOLDER` and `ACCESS_FOLDER` exist and contain the necessary files (mode definitions, `ids.txt`, `premium_ids.txt` if used).
+3.  Ensure the directory specified by `MEMORY_FOLDER` exists and the application has write permissions to it.
+4.  Navigate to the directory containing the executable (either from your build output or the extracted binary).
+5.  Run the application:
+    ```bash
+    # Replace 'YourExecutableName' with the actual name, e.g., ChatWithAI
+    ./YourExecutableName
+    ```
+    On Windows, it might be:
+    ```cmd
+    YourExecutableName.exe
+    ```
+6.  Open Telegram and start chatting with your bot!
