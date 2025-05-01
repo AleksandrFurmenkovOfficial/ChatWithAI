@@ -50,12 +50,12 @@ jobs:
     - name: Set short SHA
       run: |
           echo "SHORT_SHA=$(echo ${GITHUB_SHA} | cut -c1-7)" >> $GITHUB_ENV
-          echo "BUILD_PATH=${{ github.workspace }}/TelegramChatGPT/bin/Release/net8.0" >> $GITHUB_ENV
+          echo "BUILD_PATH=${{ github.workspace }}/ChatWithAI/bin/Release/net8.0" >> $GITHUB_ENV
       
     - name: Publish to artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: TelegramChatGPT_${{ env.SHORT_SHA }}
+        name: ChatWithAI_${{ env.SHORT_SHA }}
         path: ${{ env.BUILD_PATH }}/*
 
     - name: Publish to Docker

@@ -9,6 +9,6 @@ RUN update-ca-certificates
 RUN apt-get update
 RUN apt-get install -y dotnet-sdk-8.0
 
-COPY . /TelegramChatGPT
-WORKDIR /TelegramChatGPT
-ENTRYPOINT ["dotnet", "TelegramChatGPT.dll"]
+COPY . /ChatWithAI
+WORKDIR /ChatWithAI
+ENTRYPOINT ["dotnet", "ChatWithAI.dll"]

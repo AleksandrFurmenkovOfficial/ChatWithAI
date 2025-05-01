@@ -1,0 +1,55 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34330.188
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChatWithAI.Contracts", "ChatWithAI.Contracts\ChatWithAI.Contracts.csproj", "{4DAC5D7F-5266-4CFF-85C7-8BD8E665EB88}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChatWithAI.Core", "ChatWithAI.Core\ChatWithAI.Core.csproj", "{11F44E88-3448-46A1-83F6-EB0C5B08D3EC}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChatWithAI.DependencyInjection", "ChatWithAI.DependencyInjection\ChatWithAI.DependencyInjection.csproj", "{23C9A3E1-D9A7-42A8-A7C4-7EA538F39FAB}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChatWithAI", "ChatWithAI\ChatWithAI.csproj", "{73015320-AD00-43F4-A988-FD6DA985558B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChatWithAI.Providers.Anthropic", "ChatWithAI.Providers.Anthropic\ChatWithAI.Providers.Anthropic.csproj", "{99CC0EA0-D40C-4602-B93A-E443DBD837EE}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChatWithAI.Providers.Google", "ChatWithAI.Providers.Google\ChatWithAI.Providers.Google.csproj", "{AC60B53F-D20E-4FDB-9210-C99C47A14E24}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4DAC5D7F-5266-4CFF-85C7-8BD8E665EB88}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4DAC5D7F-5266-4CFF-85C7-8BD8E665EB88}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4DAC5D7F-5266-4CFF-85C7-8BD8E665EB88}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4DAC5D7F-5266-4CFF-85C7-8BD8E665EB88}.Release|Any CPU.Build.0 = Release|Any CPU
+		{11F44E88-3448-46A1-83F6-EB0C5B08D3EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{11F44E88-3448-46A1-83F6-EB0C5B08D3EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{11F44E88-3448-46A1-83F6-EB0C5B08D3EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{11F44E88-3448-46A1-83F6-EB0C5B08D3EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{23C9A3E1-D9A7-42A8-A7C4-7EA538F39FAB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{23C9A3E1-D9A7-42A8-A7C4-7EA538F39FAB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{23C9A3E1-D9A7-42A8-A7C4-7EA538F39FAB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{23C9A3E1-D9A7-42A8-A7C4-7EA538F39FAB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{73015320-AD00-43F4-A988-FD6DA985558B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{73015320-AD00-43F4-A988-FD6DA985558B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{73015320-AD00-43F4-A988-FD6DA985558B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{73015320-AD00-43F4-A988-FD6DA985558B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{99CC0EA0-D40C-4602-B93A-E443DBD837EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{99CC0EA0-D40C-4602-B93A-E443DBD837EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{99CC0EA0-D40C-4602-B93A-E443DBD837EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{99CC0EA0-D40C-4602-B93A-E443DBD837EE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AC60B53F-D20E-4FDB-9210-C99C47A14E24}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AC60B53F-D20E-4FDB-9210-C99C47A14E24}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AC60B53F-D20E-4FDB-9210-C99C47A14E24}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AC60B53F-D20E-4FDB-9210-C99C47A14E24}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DB9479DD-495A-4B1D-B43F-236E8922E031}
+	EndGlobalSection
+EndGlobal
