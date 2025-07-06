@@ -126,6 +126,11 @@ namespace ChatWithAI.Contracts
             Content.Add(new TextContentItem { Text = text });
         }
 
+        public List<TextContentItem> GetTextContentItem()
+        {
+            return GetTextContentItem(this);
+        }
+
         public void AddImageContent(Uri imageUrl, string imageInBase64)
         {
             Content.Add(new ImageContentItem
@@ -133,6 +138,11 @@ namespace ChatWithAI.Contracts
                 ImageUrl = imageUrl,
                 ImageInBase64 = imageInBase64
             });
+        }
+
+        public List<ImageContentItem> GetImageContentItem()
+        {
+            return GetImageContentItem(this);
         }
 
         public static TextContentItem CreateText(string text)

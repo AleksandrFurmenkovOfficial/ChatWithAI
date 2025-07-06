@@ -1,5 +1,4 @@
 ﻿using ChatWithAI.Core.ChatCommands;
-using RxTelegram.Bot.Interface.BaseTypes;
 using System.Collections.Concurrent;
 
 namespace ChatWithAI.Core
@@ -10,7 +9,7 @@ namespace ChatWithAI.Core
         private readonly HashSet<string> premium = [];
         private int isInitialized;
 
-        public bool HasAccess(string chatId, User user)
+        public bool HasAccess(string chatId, string username)
         {
             if (Interlocked.Exchange(ref isInitialized, 1) == 0)
                 Initialize();
@@ -18,7 +17,6 @@ namespace ChatWithAI.Core
             var visitor = visitorByChatId.GetOrAdd(chatId, id =>
             {
                 bool accessByDefault = allowed.Contains(chatId) || adminChecker.IsAdmin(chatId);
-                var username = string.Join("_", user.FirstName, user.LastName, user.Username).Trim('_');
                 return new AppVisitor(accessByDefault, username, DateTime.UtcNow);
             });
 

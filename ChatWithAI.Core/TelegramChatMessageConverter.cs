@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace TelegramChatGPT.Implementation
 {
-    public sealed partial class ChatMessageConverter(
+    public sealed partial class TelegramChatMessageConverter(
         string telegramBotKey,
         IMessengerBotSource botSource) : IChatMessageConverter
     {
@@ -115,14 +115,6 @@ namespace TelegramChatGPT.Implementation
                 content.Add(ChatMessage.CreateAudio(uri, audio));
             }
 
-            if (castedMessage.Voice != null)
-            {
-                var link = await VoiceToLink(castedMessage.Voice, cancellationToken).ConfigureAwait(false);
-                var uri = new Uri(link);
-                string audio = await Helpers.EncodeAudioToWebpBase64(uri, cancellationToken).ConfigureAwait(false);
-                content.Add(ChatMessage.CreateAudio(uri, audio));
-            }
-
             var resultMessage = new ChatMessage
             {
                 Id = new MessageId(castedMessage!.MessageId.ToString(CultureInfo.InvariantCulture)),
@@ -180,18 +172,6 @@ namespace TelegramChatGPT.Implementation
         }
 
         private async Task<string> AudioToLink(Audio audio,
-            CancellationToken cancellationToken = default)
-        {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return await Task.FromCanceled<string>(cancellationToken).ConfigureAwait(false);
-            }
-
-            var file = await Bot.GetFile(audio.FileId, cancellationToken).ConfigureAwait(false);
-            return $"{new Uri(new Uri($"{TelegramBotFile}{telegramBotKey}/"), file.FilePath)}";
-        }
-
-        private async Task<string> VoiceToLink(Voice audio,
             CancellationToken cancellationToken = default)
         {
             if (cancellationToken.IsCancellationRequested)

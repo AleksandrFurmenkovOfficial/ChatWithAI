@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ChatWithAI.Contracts
@@ -7,7 +8,8 @@ namespace ChatWithAI.Contracts
     {
         string Id { get; }
 
-        Task DoResponseToMessage(ChatMessage message, CancellationToken cancellationToken = default);
+        void AddMessages(List<ChatMessage> messages);
+        Task DoResponseToLastMessage(CancellationToken cancellationToken = default);
 
         void SetMode(ChatMode mode);
         ChatMode GetMode();

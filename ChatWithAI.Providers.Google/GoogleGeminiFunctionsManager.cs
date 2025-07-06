@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 
 namespace ChatWithAI.Providers.Google
 {
-    internal sealed class GoogleGeminiFunctionsManager(IMemoryStorage memoryStorage) : AiFunctionsManager(memoryStorage) // TODO: (circuit breaker)
+    internal sealed class GoogleGeminiFunctionsManager(IMemoryStorage memoryStorage) : AiFunctionsManager(memoryStorage)
     {
         private static readonly JsonSerializerSettings m_jsonSettings = new()
         {

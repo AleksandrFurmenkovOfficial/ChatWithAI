@@ -31,7 +31,7 @@ namespace ChatWithAI.Providers.Google
 
         protected override string GetSingleshotUrl() => $"{m_endpoint}/models/{m_model}:generateContent";
 
-        protected override string GetStreamUrl() => $"{GetSingleshotUrl()}?alt=sse";
+        protected override string GetStreamUrl() => $"{m_endpoint}/models/{m_model}:streamGenerateContent?alt=sse";
 
         protected override List<ChatMessage> GetProcessedMessages(IEnumerable<ChatMessage> messages)
         {
@@ -46,6 +46,19 @@ namespace ChatWithAI.Providers.Google
                     msg.Content.Clear();
 
                     foreach (var item in imagePart)
+                    {
+                        msg.Content.AddRange([item]);
+                        newMessages.Add(msg);
+                    }
+                }
+
+                var audioPart = message.Content.OfType<AudioContentItem>();
+                if (audioPart != null && audioPart.Any())
+                {
+                    var msg = message.Clone();
+                    msg.Content.Clear();
+
+                    foreach (var item in audioPart)
                     {
                         msg.Content.AddRange([item]);
                         newMessages.Add(msg);
@@ -187,11 +200,15 @@ namespace ChatWithAI.Providers.Google
                     .OfType<ImageContentItem>()
                     .FirstOrDefault();
 
+                var audioPart = message.Content
+                    .OfType<AudioContentItem>()
+                    .FirstOrDefault();
+
                 var jsonPart = message.Content
                     .OfType<JsonObjectContentItem>()
                     .FirstOrDefault();
 
-                if (textParts.Count == 0 && imagePart == null && jsonPart == null)
+                if (textParts.Count == 0 && imagePart == null && jsonPart == null && audioPart == null)
                     continue;
 
                 string role = message.Role switch
@@ -204,7 +221,7 @@ namespace ChatWithAI.Providers.Google
                 contentsList.Add(new
                 {
                     role,
-                    parts = CreateMessageParts(textParts, imagePart, jsonPart)
+                    parts = CreateMessageParts(textParts, imagePart, audioPart, jsonPart)
                 });
             }
 
@@ -214,6 +231,7 @@ namespace ChatWithAI.Providers.Google
         private static object[] CreateMessageParts(
             List<string> textParts,
             ImageContentItem? imagePart,
+            AudioContentItem? audioPart,
             JsonObjectContentItem? jsonItem)
         {
             if (jsonItem != null)
@@ -252,6 +270,21 @@ namespace ChatWithAI.Providers.Google
                         }
                     ];
                 }
+            }
+
+            if (audioPart != null)
+            {
+                return
+                [
+                    new
+                    {
+                        inlineData = new
+                        {
+                            mimeType = "audio/mp3",
+                            data = audioPart.AudioInBase64
+                        }
+                    }
+                ];
             }
 
             return [new { text = textParts != null ? string.Join("\n", textParts) : "" }];

@@ -1,6 +1,7 @@
 ﻿using ChatWithAI.Contracts.Configs;
 using ChatWithAI.Core.ChatCommands;
 using ChatWithAI.Core.ChatMessageActions;
+using ChatWithAI.Plugins.Windows.ScreenshotCapture;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -70,7 +71,7 @@ namespace ChatWithAI.DependencyInjection
                         services.AddSingleton<IAiAgentFactory>(sp =>
                         {
                             var memoryStorage = sp.GetRequiredService<IMemoryStorage>();
-                            return new AnthropicAgentFactory(anthropicConfig, new GoogleImagegen3AiImagePainter(googleGeminiConfig.ApiKey), memoryStorage);
+                            return new AnthropicAgentFactory(anthropicConfig, new GoogleImagegen4AiImagePainter(googleGeminiConfig.ApiKey), memoryStorage);
                         });
                         break;
                     }
@@ -86,7 +87,7 @@ namespace ChatWithAI.DependencyInjection
                         services.AddSingleton<IAiAgentFactory>(sp =>
                         {
                             var memoryStorage = sp.GetRequiredService<IMemoryStorage>();
-                            return new GoogleGeminiAgentFactory(googleGeminiConfig, new GoogleImagegen3AiImagePainter(googleGeminiConfig.ApiKey), memoryStorage);
+                            return new GoogleGeminiAgentFactory(googleGeminiConfig, new GoogleImagegen4AiImagePainter(googleGeminiConfig.ApiKey), memoryStorage);
                         });
                         break;
                     }
@@ -125,10 +126,10 @@ namespace ChatWithAI.DependencyInjection
             });
 
             services.AddSingleton<IChatModeLoader, ChatModeLoader>();
-            services.AddSingleton<CacheWithExpirationCallback>(sp => 
+            services.AddSingleton<ChatCache>(sp =>
             {
                 var logger = sp.GetRequiredService<ILogger>();
-                return new CacheWithExpirationCallback(TimeSpan.FromMinutes(0.1), logger); 
+                return new ChatCache(TimeSpan.FromMinutes(0.1), logger);
             });
 
             services.AddSingleton<IChatFactory, ChatFactory>(sp =>
@@ -139,29 +140,9 @@ namespace ChatWithAI.DependencyInjection
                 var aIAgentFactory = sp.GetRequiredService<IAiAgentFactory>();
                 var messenger = sp.GetRequiredService<IMessenger>();
                 var logger = sp.GetRequiredService<ILogger>();
-                var cache = sp.GetRequiredService<CacheWithExpirationCallback>();
+                var cache = sp.GetRequiredService<ChatCache>();
 
                 return new ChatFactory(appConfig, modeLoader, aIAgentFactory, messenger, logger, cache);
-            });
-
-            services.AddSingleton<IChatCommandProcessor>(sp =>
-            {
-                var visitors = sp.GetRequiredService<ConcurrentDictionary<string, IAppVisitor>>();
-                var chatModeLoader = sp.GetRequiredService<IChatModeLoader>();
-                var memoryStorage = sp.GetRequiredService<IMemoryStorage>();
-                var commands = new List<IChatCommand>
-                {
-                    new ReStart(),
-                    new ShowVisitors(visitors),
-                    new AddAccess(visitors),
-                    new DelAccess(visitors),
-                    new SetCommonMode(chatModeLoader),
-                    new SetBaseMode(chatModeLoader),
-                    new SetTrollMode(chatModeLoader),
-                    new ClearDiary(memoryStorage)
-                };
-                var adminChecker = sp.GetRequiredService<IAdminChecker>();
-                return new ChatCommandProcessor(commands, adminChecker);
             });
 
             services.AddSingleton(sp =>
@@ -172,7 +153,6 @@ namespace ChatWithAI.DependencyInjection
                 return new AccessChecker(adminChecker, visitors, accessStorage);
             });
 
-            services.AddSingleton<IChatMessageProcessor, ChatMessageProcessor>();
             services.AddSingleton<IChatMessageActionProcessor>(sp =>
             {
                 var actions = new List<IChatMessageAction>
@@ -193,7 +173,81 @@ namespace ChatWithAI.DependencyInjection
                 return new ChatMessageConverter(settings.BotToken!, telegramBotSource);
             });
 
-            services.AddSingleton<IChatProcessor, ChatProcessor>();
+            services.AddSingleton<ChatEventSource>(sp =>
+            {
+                var actionsMappingByChat = sp.GetRequiredService<ConcurrentDictionary<string, ConcurrentDictionary<string, ActionId>>>();
+                var telegramBotSource = sp.GetRequiredService<IMessengerBotSource>();
+                var chatMessageConverter = sp.GetRequiredService<IChatMessageConverter>();
+                var adminChecker = sp.GetRequiredService<IAdminChecker>();
+                var cache = sp.GetRequiredService<ChatCache>(); // Add this line
+                var logger = sp.GetRequiredService<ILogger>();
+
+                var visitors = sp.GetRequiredService<ConcurrentDictionary<string, IAppVisitor>>();
+                var chatModeLoader = sp.GetRequiredService<IChatModeLoader>();
+                var memoryStorage = sp.GetRequiredService<IMemoryStorage>();
+                var commands = new List<IChatCommand>
+                {
+                    new ReStart(),
+                    new ShowVisitors(visitors),
+                    new AddAccess(visitors),
+                    new DelAccess(visitors),
+                    new SetCommonMode(chatModeLoader),
+                    new SetGrammarMode(chatModeLoader),
+                    new SetScientistMode(chatModeLoader),
+                    new SetTeacherMode(chatModeLoader),
+                    new SetTherapistMode(chatModeLoader),
+                    new SetBaseMode(chatModeLoader),
+                    new SetTrollMode(chatModeLoader),
+                    new ClearDiary(memoryStorage)
+                };
+
+                return new ChatEventSource(
+                    commands,
+                    actionsMappingByChat,
+                    telegramBotSource,
+                    chatMessageConverter,
+                    adminChecker,
+                    cache,
+                    logger);
+            });
+
+            services.AddSingleton<AccessChecker>();
+            services.AddSingleton<IChatActionEventSource>(sp => sp.GetRequiredService<ChatEventSource>());
+            services.AddSingleton<IChatCommandEventSource>(sp => sp.GetRequiredService<ChatEventSource>());
+            services.AddSingleton<IChatMessageEventSource>(sp => sp.GetRequiredService<ChatEventSource>());
+            services.AddSingleton<IChatExpireEventSource>(sp => sp.GetRequiredService<ChatEventSource>());
+
+            AddWindowsScreenshotCapture(services);
+
+            services.AddSingleton<IChatProcessor, ChatEventProcessor>();
+        }
+
+        public static IServiceCollection AddWindowsScreenshotCapture(this IServiceCollection services)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+#pragma warning disable CA1416 // Validate platform compatibility
+                services.AddSingleton<WindowsHotKeyService>(sp =>
+                {
+                    var config = sp.GetRequiredService<IOptions<TelegramConfig>>().Value;
+                    var logger = sp.GetRequiredService<ILogger>();
+                    return new WindowsHotKeyService(config.AdminUserId ?? string.Empty, logger);
+                });
+
+                services.AddSingleton<IChatCtrlCEventSource>(sp => sp.GetRequiredService<WindowsHotKeyService>());
+                services.AddSingleton<IChatCtrlVEventSource>(sp => sp.GetRequiredService<WindowsHotKeyService>());
+                services.AddSingleton<IScreenshotProvider, WindowsScreenshotService>();
+#pragma warning restore CA1416 // Validate platform compatibility
+            }
+            else
+            {
+                services.AddSingleton<WindowsHotKeyServiceStub>();
+                services.AddSingleton<IChatCtrlCEventSource>(sp => sp.GetRequiredService<WindowsHotKeyServiceStub>());
+                services.AddSingleton<IChatCtrlVEventSource>(sp => sp.GetRequiredService<WindowsHotKeyServiceStub>());
+                services.AddSingleton<IScreenshotProvider, WindowsScreenshotServiceStub>();
+            }
+
+            return services;
         }
     }
 }

@@ -15,6 +15,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChatWithAI.Providers.Anthro
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChatWithAI.Providers.Google", "ChatWithAI.Providers.Google\ChatWithAI.Providers.Google.csproj", "{AC60B53F-D20E-4FDB-9210-C99C47A14E24}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChatWithAI.Plugins.Windows.ScreenshotCapture", "ChatWithAI.Plugins.Windows.ScreenshotCapture\ChatWithAI.Plugins.Windows.ScreenshotCapture.csproj", "{5AB8FA5C-69A2-40C0-98F7-8F70CF63C2F5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +47,10 @@ Global
 		{AC60B53F-D20E-4FDB-9210-C99C47A14E24}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AC60B53F-D20E-4FDB-9210-C99C47A14E24}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AC60B53F-D20E-4FDB-9210-C99C47A14E24}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5AB8FA5C-69A2-40C0-98F7-8F70CF63C2F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5AB8FA5C-69A2-40C0-98F7-8F70CF63C2F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5AB8FA5C-69A2-40C0-98F7-8F70CF63C2F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5AB8FA5C-69A2-40C0-98F7-8F70CF63C2F5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

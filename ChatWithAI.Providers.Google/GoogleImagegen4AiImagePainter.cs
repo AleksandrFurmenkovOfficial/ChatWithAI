@@ -5,13 +5,13 @@ using System.Text.Json;
 
 namespace ChatWithAI.Providers.Google
 {
-    public class GoogleImagegen3AiImagePainter : IAiImagePainter
+    public class GoogleImagegen4AiImagePainter : IAiImagePainter
     {
         private readonly string _apiKey;
-        private const string _modelName = "imagen-3.0-generate-002";
+        private const string _modelName = "imagen-4.0-ultra-generate-preview-06-06";
         private const string _baseUrl = "https://generativelanguage.googleapis.com/v1beta/models/";
 
-        public GoogleImagegen3AiImagePainter(string apiKey)
+        public GoogleImagegen4AiImagePainter(string apiKey)
         {
             if (string.IsNullOrEmpty(apiKey))
             {

@@ -4,7 +4,7 @@ using System.Reactive.Subjects;
 
 namespace ChatWithAI.Core
 {
-    public class CacheWithExpirationCallback : IDisposable
+    public class ChatCache : IDisposable
     {
         private readonly ConcurrentDictionary<string, CacheItem> _cacheItems = new();
         private readonly Timer _expirationTimer;
@@ -15,7 +15,7 @@ namespace ChatWithAI.Core
 
         public IObservable<ExpirationEventArgs> ExpirationObservable { get; }
 
-        public CacheWithExpirationCallback(
+        public ChatCache(
             TimeSpan checkInterval,
             ILogger logger)
         {
@@ -283,7 +283,7 @@ namespace ChatWithAI.Core
                 if (valueType != null && item.Value != null)
                 {
                     Log($"Notifying about expired item '{key}'");
-                    var args = new ExpirationEventArgs(key, item.Value, valueType);
+                    var args = new ExpirationEventArgs(key);
                     _expirationSubject.OnNext(args);
                 }
             }
@@ -306,7 +306,7 @@ namespace ChatWithAI.Core
 
         private void EnsureNotDisposed()
         {
-            ObjectDisposedException.ThrowIf(_isDisposed == 1, nameof(CacheWithExpirationCallback));
+            ObjectDisposedException.ThrowIf(_isDisposed == 1, nameof(ChatCache));
         }
 
         public void Dispose()
@@ -345,7 +345,7 @@ namespace ChatWithAI.Core
             }
         }
 
-        ~CacheWithExpirationCallback()
+        ~ChatCache()
         {
             Dispose(false);
         }
@@ -361,17 +361,8 @@ namespace ChatWithAI.Core
         }
     }
 
-    public class ExpirationEventArgs : EventArgs
+    public class ExpirationEventArgs(string chatId) : EventArgs
     {
-        public string Key { get; }
-        public object Value { get; }
-        public Type ValueType { get; }
-
-        public ExpirationEventArgs(string key, object value, Type valueType)
-        {
-            Key = key;
-            Value = value;
-            ValueType = valueType;
-        }
+        public string ChatId { get; } = chatId;
     }
 }

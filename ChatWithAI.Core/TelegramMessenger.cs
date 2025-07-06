@@ -14,7 +14,7 @@ namespace ChatWithAI.Core
         IMessengerBotSource telegramBotSource) : IMessenger
     {
         private ITelegramBot Bot => (ITelegramBot)telegramBotSource.Bot();
-        private const ParseMode DefaultParseMode = ParseMode.HTML;
+        private const ParseMode DefaultParseMode = ParseMode.Markdown;
 
         private static ParseMode GetParseMode(int i)
         {
@@ -164,7 +164,6 @@ namespace ChatWithAI.Core
                 }
                 catch
                 {
-                    Debug.WriteLine(caption);
                     throw;
                 }
             }, DelayPolicy, cancellationToken).ConfigureAwait(false);
@@ -191,7 +190,7 @@ namespace ChatWithAI.Core
 
         private static async Task<T> ExecuteWithRetryAsync<T>(Func<ParseMode, Task<T>> operation, TimeSpan[] retryDelays, CancellationToken cancellationToken)
         {
-            int tryCount = 2;
+            int tryCount = 0;
             while (true)
             {
                 try
@@ -200,12 +199,12 @@ namespace ChatWithAI.Core
                 }
                 catch
                 {
-                    if (tryCount == 0)
+                    if (tryCount == 2)
                     {
                         throw;
                     }
                     await Task.Delay(retryDelays[tryCount], cancellationToken).ConfigureAwait(false);
-                    --tryCount;
+                    ++tryCount;
                 }
             }
         }

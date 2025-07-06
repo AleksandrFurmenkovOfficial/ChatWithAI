@@ -201,8 +201,8 @@
   <data name="TherapistModeNow" xml:space="preserve">
     <value>The AI is now in therapist mode.</value>
   </data>
-  <data name="PoetModeNow" xml:space="preserve">
-    <value>The AI is now in poet mode.</value>
+  <data name="GrammarModeNow" xml:space="preserve">
+    <value>The AI is now in grammar mode.</value>
   </data>
   <data name="BaseModeNow" xml:space="preserve">
     <value>The AI is now in base mode (raw AI model without Vivy personality).</value>

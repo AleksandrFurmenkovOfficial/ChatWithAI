@@ -133,6 +133,15 @@ namespace ChatWithAI.Core {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to The AI is now in grammar mode..
+        /// </summary>
+        internal static string GrammarModeNow {
+            get {
+                return ResourceManager.GetString("GrammarModeNow", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to @{0} has started!.
         /// </summary>
         internal static string HasStarted {
@@ -174,15 +183,6 @@ namespace ChatWithAI.Core {
         internal static string OnlyTextOrPhoto {
             get {
                 return ResourceManager.GetString("OnlyTextOrPhoto", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to The AI is now in poet mode..
-        /// </summary>
-        internal static string PoetModeNow {
-            get {
-                return ResourceManager.GetString("PoetModeNow", resourceCulture);
             }
         }
         

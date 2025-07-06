@@ -29,7 +29,6 @@ namespace ChatWithAI.Core.AiFunctions
 
             try
             {
-                Debug.WriteLine($"{functionName}({parameters})");
                 return function.Execute(api, ConvertParameters(parameters), userId, cancellationToken);
             }
             catch (Exception ex)

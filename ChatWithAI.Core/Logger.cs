@@ -6,7 +6,7 @@ namespace ChatWithAI.Core
     {
         private readonly Microsoft.Extensions.Logging.ILogger _logger;
 
-        public Logger(ILogger<Logger> logger) // TODO: how does it works?
+        public Logger(ILogger<Logger> logger)
         {
             _logger = logger;
         }

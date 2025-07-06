@@ -2,7 +2,7 @@
 
 namespace ChatWithAI.Core
 {
-    public sealed class ChatFactory(AppConfig config, IChatModeLoader modeLoader, IAiAgentFactory aIAgentFactory, IMessenger messenger, ILogger logger, CacheWithExpirationCallback cache) : IChatFactory
+    public sealed class ChatFactory(AppConfig config, IChatModeLoader modeLoader, IAiAgentFactory aIAgentFactory, IMessenger messenger, ILogger logger, ChatCache cache) : IChatFactory
     {
         public async Task<IChat> CreateChat(string chatId, string modeName, bool useExpiration)
         {

@@ -10,7 +10,7 @@ namespace ChatWithAI.Core
         string systemMessage,
         bool enableFunctions,
         IAiImagePainter? aiImagePainter,
-        IAiFunctionsManager aiFunctionsManager) : IAiAgent, IDisposable // .NET 8.0 primary constructor, do not rewrite to older version!
+        IAiFunctionsManager aiFunctionsManager) : IAiAgent, IDisposable
     {
 #pragma warning disable CA1051 // Do not declare visible instance fields
         protected readonly HttpClient m_httpClient = new();
@@ -20,6 +20,7 @@ namespace ChatWithAI.Core
         protected readonly IAiImagePainter? m_aiImagePainter = aiImagePainter;
         protected readonly IAiFunctionsManager m_aiFunctionsManager = aiFunctionsManager;
         protected readonly bool m_useCache = true;
+        //private int resp;
 #pragma warning restore CA1051 // Do not declare visible instance fields
 
         public string AiName => m_aiName;
@@ -121,7 +122,7 @@ namespace ChatWithAI.Core
             {
                 var jsonRequest = GetJsonPayload(messages, m_systemMessage, useStream: true, useTools: m_enableFunctions, useCache: m_useCache);
 
-                // await File.WriteAllTextAsync($"D:\\jsonRequest{++resp}.json", jsonRequest, cancellationToken).ConfigureAwait(false);
+                //await File.WriteAllTextAsync($"D:\\jsonRequest{++resp}.json", jsonRequest, cancellationToken).ConfigureAwait(false);
 
                 using var content = new StringContent(jsonRequest, Encoding.UTF8, MediaTypeNames.Application.Json);
                 using var request = new HttpRequestMessage(HttpMethod.Post, GetStreamUrl()) { Content = content };
@@ -142,7 +143,6 @@ namespace ChatWithAI.Core
                 while (!reader.EndOfStream)
                 {
                     var chunk = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
-                    Debug.WriteLine(chunk);
                     if (string.IsNullOrEmpty(chunk) || SkipLine(chunk))
                     {
                         continue;
