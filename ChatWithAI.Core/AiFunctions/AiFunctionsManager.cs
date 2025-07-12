@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-
-namespace ChatWithAI.Core.AiFunctions
+﻿namespace ChatWithAI.Core.AiFunctions
 {
     public abstract class AiFunctionsManager : IAiFunctionsManager
     {

@@ -49,7 +49,7 @@ namespace ChatWithAI.Core
 
             _cacheItems[key] = item;
 
-            Log($"Set '{key}' with expiration at {item.ExpiresAt:yyyy-MM-dd HH:mm:ss.fff} UTC");
+            // Log($"Set '{key}' with expiration at {item.ExpiresAt:yyyy-MM-dd HH:mm:ss.fff} UTC");
         }
 
         public T? Get<T>(string key)
@@ -201,7 +201,7 @@ namespace ChatWithAI.Core
 
             if (itemRemoved)
             {
-                Log($"Manually removed item '{key}'");
+                // Log($"Manually removed item '{key}'");
                 return true;
             }
             return false;

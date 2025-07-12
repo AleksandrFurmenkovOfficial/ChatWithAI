@@ -6,7 +6,7 @@ namespace ChatWithAI.Core
 {
     public sealed class Chat(AppConfig config, string chatId, IAiAgentFactory aiAgentFactory, IMessenger messenger, ILogger logger, ChatCache cache, bool useExpiration) : IChat
     {
-        private const int MessageUpdateStepInCharsCount = 42;
+        private const int MessageUpdateStepInCharsCount = 84;
 
         private IAiAgent? aiAgent;
         private ChatMode? chatMode;
@@ -55,20 +55,20 @@ namespace ChatWithAI.Core
 
         public void AddMessages(List<ChatMessage> messages)
         {
-            ResetLastMessageButtons(default).GetAwaiter().GetResult();
+            ResetLastMessageButtons().GetAwaiter().GetResult();
             AddNewUsersMessages(messages);
         }
 
         public async Task DoResponseToLastMessage(CancellationToken cancellationToken)
         {
-            await ResetLastMessageButtons(default).ConfigureAwait(false);
-            await SendResponseTargetMessage(default).ConfigureAwait(false);
+            await ResetLastMessageButtons().ConfigureAwait(false);
+            await SendResponseTargetMessage(cancellationToken).ConfigureAwait(false);
             await DoStreamResponseToLastMessage(cancellationToken).ConfigureAwait(false);
         }
 
         public async Task Reset(CancellationToken cancellationToken)
         {
-            await ResetLastMessageButtons(default).ConfigureAwait(false);
+            await ResetLastMessageButtons().ConfigureAwait(false);
             Clear();
         }
 
@@ -120,65 +120,78 @@ namespace ChatWithAI.Core
             SetTurns(turns);
         }
 
-        private async Task ResetLastMessageButtons(CancellationToken cancellationToken)
+        private async Task ResetLastMessageButtons()
         {
             var turns = GetTurns();
             if (turns.Count == 0)
                 return;
 
-            ChatMessage? lastMessage = null;
-            ChatTurn? turnOfLastMessage = null;
-
-            foreach (var turn in Enumerable.Reverse(turns))
+            try
             {
-                var lastSentMessageInTurn = turn.LastOrDefault(m => m.IsSent);
-                if (lastSentMessageInTurn != null)
+                ChatMessage? lastMessage = null;
+                ChatTurn? turnOfLastMessage = null;
+
+                foreach (var turn in Enumerable.Reverse(turns))
                 {
-                    lastMessage = lastSentMessageInTurn;
-                    turnOfLastMessage = turn;
-                    break;
+                    var lastSentMessageInTurn = turn.LastOrDefault(m => m.IsSent);
+                    if (lastSentMessageInTurn != null)
+                    {
+                        lastMessage = lastSentMessageInTurn;
+                        turnOfLastMessage = turn;
+                        break;
+                    }
+                }
+
+                if (lastMessage == null)
+                    return;
+
+                if (!lastMessage.IsActive)
+                    return;
+
+                var lastMessageContent = lastMessage.Content;
+                bool isEmpty = lastMessageContent == null
+                    || lastMessageContent.Count == 0
+                    || (string.IsNullOrEmpty(lastMessageContent.OfType<TextContentItem>().FirstOrDefault()?.Text)
+                       && string.IsNullOrEmpty(lastMessageContent.OfType<ImageContentItem>().FirstOrDefault()?.ImageInBase64));
+
+                if (isEmpty && turnOfLastMessage != null)
+                {
+                    turnOfLastMessage.Remove(lastMessage);
+                    if (turnOfLastMessage.Count == 0)
+                    {
+                        turns.Remove(turnOfLastMessage);
+                        SetTurns(turns);
+                    }
+                    await messenger.DeleteMessage(Id, lastMessage.Id, default).ConfigureAwait(false);
+                }
+                else
+                {
+                    await UpdateMessage(lastMessage, lastMessageContent!, null, default).ConfigureAwait(false);
+                    lastMessage.IsActive = false;
                 }
             }
-
-            if (lastMessage == null)
-                return;
-
-            var lastMessageContent = lastMessage.Content;
-            bool isEmpty = lastMessageContent == null
-                || lastMessageContent.Count == 0
-                || (string.IsNullOrEmpty(lastMessageContent.OfType<TextContentItem>().FirstOrDefault()?.Text)
-                   && string.IsNullOrEmpty(lastMessageContent.OfType<ImageContentItem>().FirstOrDefault()?.ImageInBase64));
-
-            if (isEmpty && turnOfLastMessage != null)
+            catch (Exception e)
             {
-                turnOfLastMessage.Remove(lastMessage);
-                if (turnOfLastMessage.Count == 0)
-                {
-                    turns.Remove(turnOfLastMessage);
-                }
-                await messenger.DeleteMessage(Id, lastMessage.Id, default).ConfigureAwait(false);
+                logger?.LogException(e);
             }
-            else
-            {
-                await UpdateMessage(lastMessage, lastMessageContent!, null, cancellationToken).ConfigureAwait(false);
-            }
-
-            SetTurns(turns);
         }
 
         private async Task UpdateMessage(ChatMessage message, List<ContentItem> newContent,
             IEnumerable<ActionId>? newActions = null, CancellationToken cancellationToken = default)
         {
+            Debug.WriteLine("UpdateMessage");
             try
             {
                 var newText = newContent.OfType<TextContentItem>().FirstOrDefault()?.Text ?? Strings.InitAnswerTemplate;
                 if (ChatMessage.IsPhotoMessage(message))
                 {
+                    Debug.WriteLine("IsPhotoMessage newText=" + newText);
                     await messenger.EditPhotoMessage(Id, message.Id, newText, newActions, cancellationToken)
                         .ConfigureAwait(false);
                 }
                 else
                 {
+                    Debug.WriteLine("EditTextMessage newText=" + newText);
                     await messenger.EditTextMessage(Id, message.Id, newText, newActions, cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -223,47 +236,55 @@ namespace ChatWithAI.Core
             if (!sentMessages.Any())
                 return true;
 
-            var responseTargetMessage = turns.Last().Where(m => m.IsSent).Last();
-
-            bool isDeltaHaveOnlyTextContent = contentDelta.Messages == null || contentDelta.Messages.Count == 0;
-            var isFinalMessageUpdate = contentDelta is LastResponseStreamChunk || cancellationToken.IsCancellationRequested;
-            if (isDeltaHaveOnlyTextContent || isFinalMessageUpdate)
+            try
             {
-                var textContent = ChatMessage.GetTextContentItem(responseTargetMessage)[0];
-                textContent.Text += contentDelta.TextDelta ?? "";
+                var responseTargetMessage = turns.Last().Where(m => m.IsSent).Last();
 
-                string extraDelta = "";
-                CutMessageContent(responseTargetMessage, ref extraDelta);
-
-                if ((textContent.Text.Length % MessageUpdateStepInCharsCount) != 1 || isFinalMessageUpdate)
+                bool isDeltaHaveOnlyTextContent = contentDelta.Messages == null || contentDelta.Messages.Count == 0;
+                var isFinalMessageUpdate = contentDelta is LastResponseStreamChunk || cancellationToken.IsCancellationRequested;
+                if (isDeltaHaveOnlyTextContent || isFinalMessageUpdate)
                 {
-                    await UpdateTargetMessage(responseTargetMessage, isFinalMessageUpdate, default).ConfigureAwait(false);
-                }
+                    var textContent = ChatMessage.GetTextContentItem(responseTargetMessage)[0];
+                    textContent.Text += contentDelta.TextDelta ?? "";
 
-                if (!string.IsNullOrEmpty(extraDelta))
-                {
-                    await SendResponseTargetMessage(default).ConfigureAwait(false);
+                    string extraDelta = "";
+                    CutMessageContent(responseTargetMessage, ref extraDelta);
 
-                    // We need to get turns again as SendResponseTargetMessage may have updated it
-                    turns = GetTurns();
-                    var newResponseTargetMessage = turns.Last().Where(m => m.IsSent).Last();
-                    TextContentItem? textContentNew = newResponseTargetMessage.Content.OfType<TextContentItem>().FirstOrDefault();
-                    if (textContentNew != null)
+                    if ((textContent.Text.Length % MessageUpdateStepInCharsCount) != 1 || isFinalMessageUpdate)
                     {
-                        textContentNew.Text = extraDelta;
+                        await UpdateTargetMessage(responseTargetMessage, isFinalMessageUpdate, default).ConfigureAwait(false);
                     }
 
-                    await UpdateTargetMessage(newResponseTargetMessage, isFinalMessageUpdate, default).ConfigureAwait(false);
+                    if (!string.IsNullOrEmpty(extraDelta))
+                    {
+                        await SendResponseTargetMessage(default).ConfigureAwait(false);
 
-                    // Reset buttons on previous
-                    await UpdateMessage(responseTargetMessage, responseTargetMessage.Content, null, default).ConfigureAwait(false);
+                        // We need to get turns again as SendResponseTargetMessage may have updated it
+                        turns = GetTurns();
+                        var newResponseTargetMessage = turns.Last().Where(m => m.IsSent).Last();
+                        TextContentItem? textContentNew = newResponseTargetMessage.Content.OfType<TextContentItem>().FirstOrDefault();
+                        if (textContentNew != null)
+                        {
+                            textContentNew.Text = extraDelta;
+                        }
+
+                        await UpdateTargetMessage(newResponseTargetMessage, isFinalMessageUpdate, default).ConfigureAwait(false);
+
+                        // Reset buttons on previous
+                        await UpdateMessage(responseTargetMessage, responseTargetMessage.Content, null, default).ConfigureAwait(false);
+                    }
+
+                    SetTurns(turns);
+                    return isFinalMessageUpdate;
                 }
 
-                SetTurns(turns);
-                return isFinalMessageUpdate;
+                return await ProcessFunctionResult(responseTargetMessage, contentDelta, cancellationToken).ConfigureAwait(false);
             }
-
-            return await ProcessFunctionResult(responseTargetMessage, contentDelta, cancellationToken).ConfigureAwait(false);
+            catch (Exception e)
+            {
+                logger?.LogException(e);
+                return true;
+            }
         }
 
         private void CutMessageContent(ChatMessage responseTargetMessage, ref string extraDelta)
@@ -345,6 +366,21 @@ namespace ChatWithAI.Core
             var newContent = hasContent ? responseTargetMessage.Content : [ChatMessage.CreateText(Strings.InitAnswerTemplate)];
             List<ActionId> actionsByContent = hasContent ? [ContinueAction.Id, RegenerateAction.Id] : [RetryAction.Id];
             List<ActionId> actions = finalUpdate ? actionsByContent : [StopAction.Id];
+
+            // Fix for google models
+            if (finalUpdate)
+            {
+                var textContent = newContent.OfType<TextContentItem>().FirstOrDefault();
+                if (textContent != null && textContent.Text != null)
+                {
+                    var lastTagToRemove = "Here is the original image:";
+                    if (textContent.Text.EndsWith(lastTagToRemove, StringComparison.InvariantCulture))
+                    {
+                        textContent.Text = textContent.Text[..^lastTagToRemove.Length];
+                    }
+                }
+            }
+
             await UpdateMessage(responseTargetMessage, newContent, actions, cancellationToken).ConfigureAwait(false);
         }
 

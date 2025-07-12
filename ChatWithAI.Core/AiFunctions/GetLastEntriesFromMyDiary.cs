@@ -19,13 +19,9 @@
 
         public async Task<AiFunctionResult> Execute(IAiAgent api, Dictionary<string, string> parameters, string userId, CancellationToken cancellationToken = default)
         {
-            string path = await memoryStorage.GetContent(api.AiName, userId, cancellationToken).ConfigureAwait(false);
-            if (!File.Exists(path))
-            {
-                return new AiFunctionResult("There are no records in the long-term memory associated with this user.");
-            }
-
-            string data = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+            string data = await memoryStorage.GetContent(api.AiName, userId, cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(data))
+                throw new ArgumentException("There are no records in the long-term memory associated with this user.");
             var lines = data.Split(Environment.NewLine);
             var last9Records = lines.Skip(Math.Max(0, lines.Length - 9)).ToArray();
             string lastNineRecordsAsString = string.Join(Environment.NewLine, last9Records);

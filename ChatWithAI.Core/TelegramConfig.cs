@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using System.ComponentModel.DataAnnotations;
 
-
 namespace ChatWithAI.Core
 {
     public class TelegramConfig

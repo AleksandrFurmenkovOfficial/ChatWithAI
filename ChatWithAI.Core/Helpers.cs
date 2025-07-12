@@ -1,7 +1,6 @@
 ﻿using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Formats.Webp;
 
-
 namespace ChatWithAI.Core
 {
     public static class Helpers

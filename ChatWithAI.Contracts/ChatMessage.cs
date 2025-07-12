@@ -54,6 +54,7 @@ namespace ChatWithAI.Contracts
 
         public MessageId Id { get; set; }
         public bool IsSent { get; set; }
+        public bool IsActive { get; set; }
         public MessageRole Role { get; set; }
         public string Name { get; set; }
         public List<ContentItem> Content { get; set; }
@@ -72,6 +73,7 @@ namespace ChatWithAI.Contracts
         {
             Id = InternalMessageId;
             IsSent = false;
+            IsActive = false;
             Role = MessageRole.eRoleSystem;
             Name = "";
             Content = [];
@@ -117,6 +119,7 @@ namespace ChatWithAI.Contracts
                 Name)
             {
                 IsSent = IsSent,
+                IsActive = IsActive,
                 Id = Id
             };
         }

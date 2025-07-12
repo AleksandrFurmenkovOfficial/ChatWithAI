@@ -4,32 +4,21 @@ using RxTelegram.Bot.Interface.BaseTypes.Enums;
 using RxTelegram.Bot.Interface.BaseTypes.Requests.Attachments;
 using RxTelegram.Bot.Interface.BaseTypes.Requests.Messages;
 using System.Collections.Concurrent;
-using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace ChatWithAI.Core
 {
     public sealed class TelegramMessenger(
         TelegramConfig config,
-        ConcurrentDictionary<string, ConcurrentDictionary<string, ActionId>> actionsMapping,
+        ConcurrentDictionary<string, ConcurrentDictionary<string, ActionId>> actionsMappingByChat,
         IMessengerBotSource telegramBotSource) : IMessenger
     {
         private ITelegramBot Bot => (ITelegramBot)telegramBotSource.Bot();
         private const ParseMode DefaultParseMode = ParseMode.Markdown;
 
-        private static ParseMode GetParseMode(int i)
-        {
-            return i switch
-            {
-                (int)ParseMode.HTML => ParseMode.HTML,
-                (int)ParseMode.Markdown => ParseMode.Markdown,
-                (int)ParseMode.MarkdownV2 => ParseMode.MarkdownV2,
-                _ => DefaultParseMode,
-            };
-        }
+        private static readonly TimeSpan[] DelayPolicy = [TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(200)];
 
-        private static readonly TimeSpan[] DelayPolicy = [TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(200), TimeSpan.FromMilliseconds(200)];
-
-        private InlineKeyboardMarkup? GetInlineKeyboardMarkup(string chatId, IEnumerable<ActionId>? messageActionIds)
+        private InlineKeyboardMarkup? GetNewInlineKeyboardMarkup(string chatId, IEnumerable<ActionId>? messageActionIds)
         {
             var messageActionIdsList = messageActionIds?.ToList();
             if (messageActionIdsList == null || messageActionIdsList.Count == 0)
@@ -37,7 +26,7 @@ namespace ChatWithAI.Core
                 return null;
             }
 
-            var mapping = actionsMapping.GetOrAdd(chatId, _ => new ConcurrentDictionary<string, ActionId>());
+            var mapping = actionsMappingByChat.GetOrAdd(chatId, _ => new ConcurrentDictionary<string, ActionId>());
             mapping.Clear();
 
             var buttons = messageActionIdsList.Select(callbackId =>
@@ -65,7 +54,7 @@ namespace ChatWithAI.Core
             };
         }
 
-        public Task<bool> DeleteMessage(string chatId, MessageId messageId,
+        public async Task<bool> DeleteMessage(string chatId, MessageId messageId,
             CancellationToken cancellationToken = default)
         {
             var deleteMessageRequest = new DeleteMessage
@@ -73,7 +62,11 @@ namespace ChatWithAI.Core
                 ChatId = Helpers.StrToLong(chatId),
                 MessageId = Helpers.MessageIdToInt(messageId)
             };
-            return Bot.DeleteMessage(deleteMessageRequest, cancellationToken);
+
+            var result = await Bot.DeleteMessage(deleteMessageRequest, cancellationToken);
+            actionsMappingByChat.Remove(chatId, out _);
+
+            return result;
         }
 
         public async Task<string> SendTextMessage(string chatId, ChatMessage message,
@@ -82,16 +75,34 @@ namespace ChatWithAI.Core
             return await ExecuteWithRetryAsync(async (parseMode) =>
             {
                 var textContent = message.Content.OfType<TextContentItem>().FirstOrDefault() ?? throw new InvalidOperationException("Message content does not contain TextContentItem.");
-                var sendMessageRequest = new SendMessage
+
+                async Task<string> InternalReTry(int attempt = 0)
                 {
-                    ChatId = Helpers.StrToLong(chatId),
-                    Text = textContent.Text,
-                    ReplyMarkup = GetInlineKeyboardMarkup(chatId, messageActionIds),
-                    ParseMode = parseMode
-                };
-                var sentMessage = await Bot.SendMessage(sendMessageRequest, cancellationToken).ConfigureAwait(false);
-                message.IsSent = true;
-                return sentMessage.MessageId.ToString(CultureInfo.InvariantCulture);
+                    string? currentText = attempt == 0 ? textContent.Text : removeFormatting(textContent.Text!, parseMode);
+
+                    var sendMessageRequest = new SendMessage
+                    {
+                        ChatId = Helpers.StrToLong(chatId),
+                        Text = currentText,
+                        ReplyMarkup = GetNewInlineKeyboardMarkup(chatId, messageActionIds),
+                        ParseMode = parseMode
+                    };
+
+                    try
+                    {
+                        var sentMessage = await Bot.SendMessage(sendMessageRequest, cancellationToken).ConfigureAwait(false);
+                        message.IsSent = true;
+                        message.IsActive = true;
+                        return sentMessage.MessageId.ToString(CultureInfo.InvariantCulture);
+                    }
+                    catch when (attempt < 1)
+                    {
+                        return await InternalReTry(attempt + 1);
+                    }
+                }
+
+                return await InternalReTry().ConfigureAwait(false);
+
             }, DelayPolicy, cancellationToken).ConfigureAwait(false);
         }
 
@@ -100,17 +111,32 @@ namespace ChatWithAI.Core
         {
             await ExecuteWithRetryAsync(async (parseMode) =>
             {
-                var editMessageRequest = new EditMessageText
+                async Task<bool> InternalReTry(int attempt = 0)
                 {
-                    ChatId = Helpers.StrToLong(chatId),
-                    MessageId = Helpers.MessageIdToInt(messageId),
-                    Text = content,
-                    ReplyMarkup = GetInlineKeyboardMarkup(chatId, messageActionIds),
-                    ParseMode = parseMode
-                };
+                    string currentContent = attempt == 0 ? content : removeFormatting(content, parseMode);
 
-                await Bot.EditMessageText(editMessageRequest, cancellationToken).ConfigureAwait(false);
-                return true;
+                    var editMessageRequest = new EditMessageText
+                    {
+                        ChatId = Helpers.StrToLong(chatId),
+                        MessageId = Helpers.MessageIdToInt(messageId),
+                        Text = currentContent,
+                        ReplyMarkup = GetNewInlineKeyboardMarkup(chatId, messageActionIds),
+                        ParseMode = parseMode
+                    };
+
+                    try
+                    {
+                        await Bot.EditMessageText(editMessageRequest, cancellationToken).ConfigureAwait(false);
+                        return true;
+                    }
+                    catch when (attempt < 1)
+                    {
+                        return await InternalReTry(attempt + 1);
+                    }
+                }
+
+                return await InternalReTry().ConfigureAwait(false);
+
             }, DelayPolicy, cancellationToken).ConfigureAwait(false);
         }
 
@@ -120,25 +146,25 @@ namespace ChatWithAI.Core
             return await ExecuteWithRetryAsync(async (parseMode) =>
             {
                 var captionContent = message.Content.OfType<TextContentItem>().FirstOrDefault() ?? throw new InvalidOperationException("Message content does not contain TextContentItem.");
-                var caption = captionContent.Text;
 
-                try
+                async Task<string> InternalReTry(int attempt = 0)
                 {
+                    string? currentCaption = attempt == 0 ? captionContent.Text : removeFormatting(captionContent.Text!, parseMode);
+
                     var imageContent = message.Content.OfType<ImageContentItem>().FirstOrDefault() ?? throw new InvalidOperationException("Message content does not contain ImageContentItem.");
                     Stream imageStream = imageContent.ImageInBase64 != null && imageContent.ImageInBase64.Length > 0
                         ? Helpers.ConvertBase64ToMemoryStream(imageContent.ImageInBase64)
                         : await Helpers.GetStreamFromUrlAsync(imageContent.ImageUrl!, cancellationToken).ConfigureAwait(false);
 
-                    await using (imageStream)
+                    await using (imageStream.ConfigureAwait(false))
                     {
-                        // TODO: presave full size tmp solution
                         if (DefaultParseMode == parseMode) // to skip retries
                         {
                             var sendPhotoFileMessage = new SendDocument
                             {
                                 ChatId = Helpers.StrToLong(chatId),
                                 Document = new InputFile(imageStream, "full_size.webp"),
-                                ReplyMarkup = GetInlineKeyboardMarkup(chatId, []),
+                                ReplyMarkup = GetNewInlineKeyboardMarkup(chatId, []),
                                 ParseMode = parseMode,
                                 DisableContentTypeDetection = true,
                                 ProtectContent = false
@@ -152,20 +178,27 @@ namespace ChatWithAI.Core
                         {
                             ChatId = Helpers.StrToLong(chatId),
                             Photo = new InputFile(imageStream),
-                            Caption = caption,
-                            ReplyMarkup = GetInlineKeyboardMarkup(chatId, messageActionIds),
+                            Caption = currentCaption,
+                            ReplyMarkup = GetNewInlineKeyboardMarkup(chatId, messageActionIds),
                             ParseMode = parseMode
                         };
 
-                        var result = await Bot.SendPhoto(sendPhotoMessage, cancellationToken).ConfigureAwait(false);
-                        message.IsSent = true;
-                        return result.MessageId.ToString(CultureInfo.InvariantCulture);
+                        try
+                        {
+                            var result = await Bot.SendPhoto(sendPhotoMessage, cancellationToken).ConfigureAwait(false);
+                            message.IsSent = true;
+                            message.IsActive = true;
+                            return result.MessageId.ToString(CultureInfo.InvariantCulture);
+                        }
+                        catch when (attempt < 1)
+                        {
+                            return await InternalReTry(attempt + 1);
+                        }
                     }
                 }
-                catch
-                {
-                    throw;
-                }
+
+                return await InternalReTry().ConfigureAwait(false);
+
             }, DelayPolicy, cancellationToken).ConfigureAwait(false);
         }
 
@@ -174,17 +207,32 @@ namespace ChatWithAI.Core
         {
             await ExecuteWithRetryAsync(async (parseMode) =>
             {
-                var editCaptionRequest = new EditMessageCaption
+                async Task<bool> InternalReTry(int attempt = 0)
                 {
-                    ChatId = Helpers.StrToLong(chatId),
-                    MessageId = Helpers.MessageIdToInt(messageId),
-                    Caption = caption,
-                    ReplyMarkup = GetInlineKeyboardMarkup(chatId, messageActionIds),
-                    ParseMode = parseMode
-                };
+                    string currentCaption = attempt == 0 ? caption : removeFormatting(caption, parseMode);
 
-                await Bot.EditMessageCaption(editCaptionRequest, cancellationToken).ConfigureAwait(false);
-                return true;
+                    var editCaptionRequest = new EditMessageCaption
+                    {
+                        ChatId = Helpers.StrToLong(chatId),
+                        MessageId = Helpers.MessageIdToInt(messageId),
+                        Caption = currentCaption,
+                        ReplyMarkup = GetNewInlineKeyboardMarkup(chatId, messageActionIds),
+                        ParseMode = parseMode
+                    };
+
+                    try
+                    {
+                        await Bot.EditMessageCaption(editCaptionRequest, cancellationToken).ConfigureAwait(false);
+                        return true;
+                    }
+                    catch when (attempt < 1)
+                    {
+                        return await InternalReTry(attempt + 1);
+                    }
+                }
+
+                return await InternalReTry().ConfigureAwait(false);
+
             }, DelayPolicy, cancellationToken).ConfigureAwait(false);
         }
 
@@ -195,17 +243,33 @@ namespace ChatWithAI.Core
             {
                 try
                 {
-                    return await operation(GetParseMode(tryCount)).ConfigureAwait(false);
-                }
-                catch
-                {
-                    if (tryCount == 2)
+                    if (tryCount == 0)
                     {
-                        throw;
+                        return await operation(ParseMode.Markdown).ConfigureAwait(false);
                     }
+                    else if (tryCount == 1)
+                    {
+                        return await operation(ParseMode.HTML).ConfigureAwait(false);
+                    }
+                }
+                catch when (tryCount < 2)
+                {
                     await Task.Delay(retryDelays[tryCount], cancellationToken).ConfigureAwait(false);
                     ++tryCount;
                 }
+            }
+        }
+
+        private static string removeFormatting(string text, ParseMode parseMode)
+        {
+            switch (parseMode)
+            {
+                case ParseMode.Markdown:
+                    return text.Replace("**", "").Replace('*', '•').Replace('_', ' ').Replace('`', '\'').Trim();
+                case ParseMode.HTML:
+                    return Regex.Replace(text, @"<[^>]*>", string.Empty);
+                default:
+                    return text;
             }
         }
 

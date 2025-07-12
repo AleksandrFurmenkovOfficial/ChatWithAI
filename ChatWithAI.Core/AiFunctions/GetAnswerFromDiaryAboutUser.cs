@@ -28,10 +28,6 @@
 
         public async Task<AiFunctionResult> Execute(IAiAgent api, Dictionary<string, string> parameters, string userId, CancellationToken cancellationToken)
         {
-            string path = await memoryStorage.GetContent(api.AiName, userId, cancellationToken).ConfigureAwait(false);
-            if (!File.Exists(path))
-                throw new ArgumentException("There are no records in the long-term memory associated with this user.");
-
             if (!parameters.TryGetValue("question", out string? question))
             {
                 throw new ArgumentException("The \"question\" argument is not found");
@@ -42,7 +38,10 @@
                 throw new ArgumentException("The \"question\" value IsNullOrEmpty");
             }
 
-            var allData = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+            string allData = await memoryStorage.GetContent(api.AiName, userId, cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(allData))
+                throw new ArgumentException("There are no records in the long-term memory associated with this user.");
+
             var result = await api.GetResponse(
                     "Please extract information that answers the given question. If the question pertains to a user, their Name might be recorded in various variations - treat these various variations as the same user without any doubts.",
                     question, allData, cancellationToken)

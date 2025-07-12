@@ -4,7 +4,6 @@ using RxTelegram.Bot.Interface.BaseTypes;
 using System.Text;
 using System.Text.RegularExpressions;
 
-
 namespace TelegramChatGPT.Implementation
 {
     public sealed partial class TelegramChatMessageConverter(

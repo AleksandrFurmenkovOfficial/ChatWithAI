@@ -17,6 +17,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChatWithAI.Providers.Google
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChatWithAI.Plugins.Windows.ScreenshotCapture", "ChatWithAI.Plugins.Windows.ScreenshotCapture\ChatWithAI.Plugins.Windows.ScreenshotCapture.csproj", "{5AB8FA5C-69A2-40C0-98F7-8F70CF63C2F5}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A963D20D-3D33-4686-B4D9-4CD4783927D5}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

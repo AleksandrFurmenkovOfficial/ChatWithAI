@@ -1,7 +1,6 @@
 ﻿using RxTelegram.Bot;
 using RxTelegram.Bot.Interface.BaseTypes;
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
@@ -18,7 +17,7 @@ namespace ChatWithAI.Core
         private readonly IChatMessageConverter chatMessageConverter;
         private readonly IAdminChecker adminChecker;
         private readonly Dictionary<string, IChatCommand> commands = [];
-        private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ActionId>> actionsMappingByChat = new();
+        private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ActionId>> actionsMappingByChat;
 
         private int disposed;
         private readonly ILogger? logger;
@@ -114,7 +113,7 @@ namespace ChatWithAI.Core
                     {
                         var chatId = callbackQuery.From.Id.ToString(CultureInfo.InvariantCulture);
                         if (!actionsMappingByChat.TryGetValue(chatId, out var chatActions) ||
-                            !chatActions.TryRemove(callbackQuery.Data, out var actionId))
+                            !chatActions.TryGetValue(callbackQuery.Data, out var actionId))
                             return null;
 
                         var actionParameters = new ActionParameters(actionId, callbackQuery.Message?.MessageId.ToString(CultureInfo.InvariantCulture) ?? string.Empty);

@@ -127,41 +127,7 @@ namespace ChatWithAI.Core
                 // !!!
                 // PART to support ChatWithAI.Plugins.Windows.ScreenshotCapture
                 // Feel free to remove it for server usage!
-                if (ctrlCActions.Count > 0 && screenshotProvider != null)
-                {
-                    var imageBytes = await screenshotProvider.CaptureScreenAsync(default).ConfigureAwait(false);
-                    var imageBase64 = Convert.ToBase64String(Helpers.ConvertImageBytesToWebp(imageBytes));
-                    if (!string.IsNullOrEmpty(imageBase64))
-                    {
-                        chat.AddMessages([
-                             new ChatMessage(
-                             [
-                                 new ImageContentItem { ImageInBase64 = imageBase64 },
-                                 new TextContentItem { Text = "Please find a bug in my solution." }
-                             ], MessageRole.eRoleUser)
-                        ]);
-
-                        await chat.DoResponseToLastMessage(token).ConfigureAwait(false);
-                    }
-                }
-
-                if (ctrlVActions.Count > 0 && screenshotProvider != null)
-                {
-                    var imageBytes = await screenshotProvider.CaptureScreenAsync(default).ConfigureAwait(false);
-                    var imageBase64 = Convert.ToBase64String(Helpers.ConvertImageBytesToWebp(imageBytes));
-                    if (!string.IsNullOrEmpty(imageBase64))
-                    {
-                        chat.AddMessages([
-                             new ChatMessage(
-                             [
-                                 new ImageContentItem { ImageInBase64 = imageBase64 },
-                                 new TextContentItem { Text = "Please write a chain of thoughts on how I should think to solve the coding problem." }
-                             ], MessageRole.eRoleUser)
-                        ]);
-
-                        await chat.DoResponseToLastMessage(token).ConfigureAwait(false);
-                    }
-                }
+                await ProcessHotkeys(screenshotProvider, ctrlCActions, ctrlVActions, chat, token).ConfigureAwait(false);
                 // END OF 
                 // PART to support ChatWithAI.Plugins.Windows.ScreenshotCapture
                 // Feel free to remove it for server usage!
@@ -216,6 +182,45 @@ namespace ChatWithAI.Core
                 if (chatProcessingCts.TryRemove(new KeyValuePair<string, CancellationTokenSource>(chatId, newCts)))
                 {
                     newCts.Dispose();
+                }
+            }
+        }
+
+        private static async Task ProcessHotkeys(IScreenshotProvider? screenshotProvider, List<EventChatCtrlCHotkey> ctrlCActions, List<EventChatCtrlVHotkey> ctrlVActions, IChat chat, CancellationToken token)
+        {
+            if (ctrlCActions.Count > 0 && screenshotProvider != null)
+            {
+                var imageBytes = await screenshotProvider.CaptureScreenAsync(default).ConfigureAwait(false);
+                var imageBase64 = Convert.ToBase64String(Helpers.ConvertImageBytesToWebp(imageBytes));
+                if (!string.IsNullOrEmpty(imageBase64))
+                {
+                    chat.AddMessages([
+                         new ChatMessage(
+                         [
+                             new ImageContentItem { ImageInBase64 = imageBase64 },
+                             new TextContentItem { Text = "Please find a bug in my solution." }
+                         ], MessageRole.eRoleUser)
+                    ]);
+
+                    await chat.DoResponseToLastMessage(token).ConfigureAwait(false);
+                }
+            }
+
+            if (ctrlVActions.Count > 0 && screenshotProvider != null)
+            {
+                var imageBytes = await screenshotProvider.CaptureScreenAsync(default).ConfigureAwait(false);
+                var imageBase64 = Convert.ToBase64String(Helpers.ConvertImageBytesToWebp(imageBytes));
+                if (!string.IsNullOrEmpty(imageBase64))
+                {
+                    chat.AddMessages([
+                         new ChatMessage(
+                         [
+                             new ImageContentItem { ImageInBase64 = imageBase64 },
+                             new TextContentItem { Text = "Please write a chain of thoughts on how I should think to solve the coding problem." }
+                         ], MessageRole.eRoleUser)
+                    ]);
+
+                    await chat.DoResponseToLastMessage(token).ConfigureAwait(false);
                 }
             }
         }

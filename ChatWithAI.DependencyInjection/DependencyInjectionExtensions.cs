@@ -120,9 +120,9 @@ namespace ChatWithAI.DependencyInjection
             services.AddSingleton<IMessenger, TelegramMessenger>(sp =>
             {
                 var config = sp.GetRequiredService<IOptions<TelegramConfig>>().Value;
-                var actionsMapping = sp.GetRequiredService<ConcurrentDictionary<string, ConcurrentDictionary<string, ActionId>>>();
+                var actionsMappingByChat = sp.GetRequiredService<ConcurrentDictionary<string, ConcurrentDictionary<string, ActionId>>>();
                 var telegramBotSource = sp.GetRequiredService<IMessengerBotSource>();
-                return new TelegramMessenger(config, actionsMapping, telegramBotSource);
+                return new TelegramMessenger(config, actionsMappingByChat, telegramBotSource);
             });
 
             services.AddSingleton<IChatModeLoader, ChatModeLoader>();
@@ -179,7 +179,7 @@ namespace ChatWithAI.DependencyInjection
                 var telegramBotSource = sp.GetRequiredService<IMessengerBotSource>();
                 var chatMessageConverter = sp.GetRequiredService<IChatMessageConverter>();
                 var adminChecker = sp.GetRequiredService<IAdminChecker>();
-                var cache = sp.GetRequiredService<ChatCache>(); // Add this line
+                var cache = sp.GetRequiredService<ChatCache>();
                 var logger = sp.GetRequiredService<ILogger>();
 
                 var visitors = sp.GetRequiredService<ConcurrentDictionary<string, IAppVisitor>>();
@@ -224,22 +224,22 @@ namespace ChatWithAI.DependencyInjection
 
         public static IServiceCollection AddWindowsScreenshotCapture(this IServiceCollection services)
         {
-            if (OperatingSystem.IsWindows())
-            {
-#pragma warning disable CA1416 // Validate platform compatibility
-                services.AddSingleton<WindowsHotKeyService>(sp =>
-                {
-                    var config = sp.GetRequiredService<IOptions<TelegramConfig>>().Value;
-                    var logger = sp.GetRequiredService<ILogger>();
-                    return new WindowsHotKeyService(config.AdminUserId ?? string.Empty, logger);
-                });
-
-                services.AddSingleton<IChatCtrlCEventSource>(sp => sp.GetRequiredService<WindowsHotKeyService>());
-                services.AddSingleton<IChatCtrlVEventSource>(sp => sp.GetRequiredService<WindowsHotKeyService>());
-                services.AddSingleton<IScreenshotProvider, WindowsScreenshotService>();
-#pragma warning restore CA1416 // Validate platform compatibility
-            }
-            else
+//            if (OperatingSystem.IsWindows())
+//            {
+//#pragma warning disable CA1416 // Validate platform compatibility
+//                services.AddSingleton<WindowsHotKeyService>(sp =>
+//                {
+//                    var config = sp.GetRequiredService<IOptions<TelegramConfig>>().Value;
+//                    var logger = sp.GetRequiredService<ILogger>();
+//                    return new WindowsHotKeyService(config.AdminUserId ?? string.Empty, logger);
+//                });
+//
+//                services.AddSingleton<IChatCtrlCEventSource>(sp => sp.GetRequiredService<WindowsHotKeyService>());
+//                services.AddSingleton<IChatCtrlVEventSource>(sp => sp.GetRequiredService<WindowsHotKeyService>());
+//                services.AddSingleton<IScreenshotProvider, WindowsScreenshotService>();
+//#pragma warning restore CA1416 // Validate platform compatibility
+//            }
+//            else
             {
                 services.AddSingleton<WindowsHotKeyServiceStub>();
                 services.AddSingleton<IChatCtrlCEventSource>(sp => sp.GetRequiredService<WindowsHotKeyServiceStub>());

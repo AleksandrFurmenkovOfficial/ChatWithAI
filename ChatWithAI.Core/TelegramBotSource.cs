@@ -1,6 +1,5 @@
 ﻿using RxTelegram.Bot;
 
-
 namespace ChatWithAI.Core
 {
     public sealed class TelegramBotSource(string telegramBotKey) : IMessengerBotSource
