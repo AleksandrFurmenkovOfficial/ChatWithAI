@@ -119,3 +119,5 @@ The application uses several folders for storing data. Default paths are relativ
     YourExecutableName.exe
     ```
 6.  Open Telegram and start chatting with your bot!
+
+PS ChatWithAI.Plugins.Windows.ScreenshotCapture is a bonus for Windows users (^_^). It will be ignored for other platforms, feel free to remove it.
