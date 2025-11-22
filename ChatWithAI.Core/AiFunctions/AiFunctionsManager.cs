@@ -4,13 +4,12 @@
     {
         protected Dictionary<string, IAiFunction> Functions { get; } = [];
 
-        public AiFunctionsManager(IMemoryStorage memoryStorage)
+        public AiFunctionsManager(IMemoryStorage memoryStorage, IHttpClientFactory httpClientFactory)
         {
-            AddFunction(new GetLastEntriesFromMyDiary(memoryStorage));
-            AddFunction(new GetAnswerFromDiaryAboutUser(memoryStorage));
-            AddFunction(new SaveEntryToMyDiary(memoryStorage));
-            AddFunction(new GetImageByDescription());
-            AddFunction(new GetInformationFromUrl());
+            AddFunction(new ReadMyDiaryTool(memoryStorage));
+            AddFunction(new SaveEntryToMyDiaryTool(memoryStorage));
+            //AddFunction(new GetImageByDescription());
+            AddFunction(new GetInformationFromUrlTool(httpClientFactory));
         }
 
         public void AddFunction(IAiFunction function)

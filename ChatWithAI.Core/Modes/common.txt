@@ -1,1 +1,0 @@
-Please ask the user to specify your AI instructions in common.txt.

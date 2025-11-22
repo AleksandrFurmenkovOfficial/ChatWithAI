@@ -19,7 +19,7 @@ namespace ChatWithAI.Core {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "18.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Strings {
@@ -70,7 +70,7 @@ namespace ChatWithAI.Core {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The AI is now in base mode (raw AI model without Vivy personality)..
+        ///   Looks up a localized string similar to ИИ переведён в режим исходной модели без личности Виви..
         /// </summary>
         internal static string BaseModeNow {
             get {
@@ -79,7 +79,7 @@ namespace ChatWithAI.Core {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The AI is now in common mode..
+        ///   Looks up a localized string similar to Основной режим Виви включён..
         /// </summary>
         internal static string CommonModeNow {
             get {
@@ -93,15 +93,6 @@ namespace ChatWithAI.Core {
         internal static string Continue {
             get {
                 return ResourceManager.GetString("Continue", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to The AI is now in debate mode..
-        /// </summary>
-        internal static string DebateModeNow {
-            get {
-                return ResourceManager.GetString("DebateModeNow", resourceCulture);
             }
         }
         
@@ -124,7 +115,43 @@ namespace ChatWithAI.Core {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The AI is now in English teacher mode..
+        ///   Looks up a localized string similar to Дневник ИИ очищен..
+        /// </summary>
+        internal static string DiaryCleared {
+            get {
+                return ResourceManager.GetString("DiaryCleared", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Дневник ИИ пустой..
+        /// </summary>
+        internal static string DiaryEmpty {
+            get {
+                return ResourceManager.GetString("DiaryEmpty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ИИ переведён в режим поддержки видео и .pdf файлов..
+        /// </summary>
+        internal static string DocsModeNow {
+            get {
+                return ResourceManager.GetString("DocsModeNow", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Документы и видео были скрыты так как не поддерживаются в сообщении..
+        /// </summary>
+        internal static string DocumentNotSupported {
+            get {
+                return ResourceManager.GetString("DocumentNotSupported", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ИИ переведён в режим учителя английского языка..
         /// </summary>
         internal static string EnglishModeNow {
             get {
@@ -133,7 +160,17 @@ namespace ChatWithAI.Core {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The AI is now in grammar mode..
+        ///   Looks up a localized string similar to Произошла ошибка, попробуйте нажать кнопку &quot;Retry&quot;.
+        ///Если не помогло после двух попыток - попробуйте начать новый чат, нажав на /start..
+        /// </summary>
+        internal static string ErrorTryAgain {
+            get {
+                return ResourceManager.GetString("ErrorTryAgain", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Режим проверки грамматики..
         /// </summary>
         internal static string GrammarModeNow {
             get {
@@ -151,7 +188,26 @@ namespace ChatWithAI.Core {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to ....
+        ///   Looks up a localized string similar to 📖 *Базовые команды*:
+        ////start — Перезапустить чат с нуля. ИИ больше не видит старых сообщений.
+        ////clear — Очистить Дневник Виви. Дневник — это место, где она может делать свои заметки во время общения.
+        ////help — Вывести список доступных команд.
+        ///
+        ///📚 *Команды для смены режима чата*:
+        ////common — Включить основной режим работы Виви.
+        ////photoeditor — Включить режим художника и фоторедактора.
+        ////troll — Режим Виви-тролля, общающейся через подколы и юмор.
+        ////grammar — Режим проверки грамматики.
+        ////base — ИИ без личност [rest of string was truncated]&quot;;.
+        /// </summary>
+        internal static string Help {
+            get {
+                return ResourceManager.GetString("Help", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Думаю... ⌛.
         /// </summary>
         internal static string InitAnswerTemplate {
             get {
@@ -160,20 +216,11 @@ namespace ChatWithAI.Core {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to You do not have access to the bot. Please contact a bot administrator to request access..
+        ///   Looks up a localized string similar to У вас нет доступа к ИИ-боту. Пожалуйста, обратитесь к администратору бота, чтобы запросить доступ..
         /// </summary>
         internal static string NoAccess {
             get {
                 return ResourceManager.GetString("NoAccess", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to No text.
-        /// </summary>
-        internal static string NoText {
-            get {
-                return ResourceManager.GetString("NoText", resourceCulture);
             }
         }
         
@@ -187,11 +234,30 @@ namespace ChatWithAI.Core {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to ИИ переведён в режим создателя изображений и редактора фотографий.
+        ///⚠️ В этом специализированном режиме не поддерживается приём голосовых сообщений..
+        /// </summary>
+        internal static string PhotoEditorModeNow {
+            get {
+                return ResourceManager.GetString("PhotoEditorModeNow", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Quote.
         /// </summary>
         internal static string Quote {
             get {
                 return ResourceManager.GetString("Quote", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to /common - чтобы вернуться в обычный режим Виви..
+        /// </summary>
+        internal static string ReturnNote {
+            get {
+                return ResourceManager.GetString("ReturnNote", resourceCulture);
             }
         }
         
@@ -232,7 +298,7 @@ namespace ChatWithAI.Core {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The AI is now in scientist mode..
+        ///   Looks up a localized string similar to ИИ переведён в режим учёного..
         /// </summary>
         internal static string ScientistModeNow {
             get {
@@ -241,7 +307,7 @@ namespace ChatWithAI.Core {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Something went wrong. 😓 Sorry... Please try again..
+        ///   Looks up a localized string similar to Что-то пошло не так. 😓 Извините... Пожалуйста, попробуйте еще раз..
         /// </summary>
         internal static string SomethingGoesWrong {
             get {
@@ -250,13 +316,16 @@ namespace ChatWithAI.Core {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to New chat session in /{0} mode
+        ///   Looks up a localized string similar to 👋 Начат новый чат в /{0} режиме!
         ///
-        ///⚠️ Notice:
-        ///• The AI forgot the previous dialogue
-        ///• But kept its diary, use /clear to reset the diary
-        ///• Results may not be accurate about:
-        ///👤 People • 🗺 Places • 📚 Facts.
+        ///ИИ забыл предыдущую беседу, однако сохранил доступ к заметкам в своём Дневнике.
+        ///
+        ///Памятка:{1}
+        ////help - вывести полный список доступных команд.
+        ////clear - очистить Дневник ИИ.
+        ///
+        ///⚠️ Важно: ИИ может ошибаться, причём уверенно!
+        ///Пожалуйста, перепроверяйте всю важную информацию. .
         /// </summary>
         internal static string StartWarning {
             get {
@@ -265,7 +334,7 @@ namespace ChatWithAI.Core {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The AI is now in teacher mode..
+        ///   Looks up a localized string similar to ИИ переведён в режим учителя..
         /// </summary>
         internal static string TeacherModeNow {
             get {
@@ -274,7 +343,7 @@ namespace ChatWithAI.Core {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The AI is now in therapist mode..
+        ///   Looks up a localized string similar to ИИ переведён в режим терапевта..
         /// </summary>
         internal static string TherapistModeNow {
             get {

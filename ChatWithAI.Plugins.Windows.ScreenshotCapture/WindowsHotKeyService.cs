@@ -145,7 +145,7 @@ namespace ChatWithAI.Plugins.Windows.ScreenshotCapture
             m_hook = SetHook(m_proc);
             if (m_hook == IntPtr.Zero)
             {
-                m_log.LogInfoMessage($"[HotKey] Failed to install hook. Win32Error={Marshal.GetLastWin32Error()}");
+                m_log.LogDebugMessage($"[HotKey] Failed to install hook. Win32Error={Marshal.GetLastWin32Error()}");
                 return;
             }
 
@@ -178,12 +178,12 @@ namespace ChatWithAI.Plugins.Windows.ScreenshotCapture
             {
                 if (vk == VK_C)
                 {
-                    m_log.LogInfoMessage("Double Ctrl+C detected.");
+                    m_log.LogDebugMessage("Double Ctrl+C detected.");
                     m_ctrlCSubject.OnNext(new EventChatCtrlCHotkey(m_adminUserId));
                 }
                 else // vk == VK_V
                 {
-                    m_log.LogInfoMessage("Double Ctrl+V detected.");
+                    m_log.LogDebugMessage("Double Ctrl+V detected.");
                     m_ctrlVSubject.OnNext(new EventChatCtrlVHotkey(m_adminUserId));
                 }
             }

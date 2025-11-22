@@ -4,12 +4,12 @@ namespace ChatWithAI.Contracts
 {
     public interface ILogger
     {
-        public void LogDebugMessage(string message);
+        void LogInfoMessage(string message);
 
-        public void LogInfoMessage(string message);
+        void LogDebugMessage(string message);
 
-        public void LogErrorMessage(string message);
+        void LogErrorMessage(string message);
 
-        public void LogException(Exception e);
+        void LogException(Exception e);
     }
 }

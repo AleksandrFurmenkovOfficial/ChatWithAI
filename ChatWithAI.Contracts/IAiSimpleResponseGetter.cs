@@ -6,6 +6,7 @@ namespace ChatWithAI.Contracts
     public interface IAiSimpleResponseGetter
     {
         Task<string> GetResponse(
+            string userId,
             string setting,
             string question,
             string? data,

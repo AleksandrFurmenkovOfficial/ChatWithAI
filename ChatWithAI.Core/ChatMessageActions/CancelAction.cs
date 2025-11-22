@@ -8,7 +8,7 @@
 
         public Task Run(IChat chat, CancellationToken cancellationToken = default)
         {
-            return chat.RemoveResponse(default);
+            return Task.CompletedTask;
         }
     }
 }

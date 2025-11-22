@@ -5,6 +5,8 @@
         IAiAgent CreateAiAgent(
             string aiName,
             string systemMessage,
-            bool enableFunctions);
+            bool enableFunctions,
+            bool imageEditorMode,
+            bool useFlash);
     }
 }

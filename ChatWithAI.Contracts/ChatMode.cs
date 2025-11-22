@@ -10,5 +10,8 @@
 
         public string AiName { get; set; }
         public string AiSettings { get; set; }
+        public bool UseFunctions { get; set; }
+        public bool UseFlash { get; set; }
+        public bool UseImage { get; set; }
     }
 }

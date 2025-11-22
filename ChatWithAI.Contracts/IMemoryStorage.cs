@@ -5,8 +5,9 @@ namespace ChatWithAI.Contracts
 {
     public interface IMemoryStorage
     {
-        Task<string> GetContent(string mode, string chatId, CancellationToken cancellationToken = default);
-        Task AddLineContent(string mode, string chatId, string line, CancellationToken cancellationToken = default);
-        void Remove(string mode, string chatId, CancellationToken cancellationToken = default);
+        Task<string> GetContent(string chatId, string mode, CancellationToken cancellationToken = default);
+        Task SetContent(string chatId, string mode, string content, CancellationToken cancellationToken = default);
+        Task AddLineContent(string chatId, string mode, string line, CancellationToken cancellationToken = default);
+        void Remove(string chatId, string mode, CancellationToken cancellationToken = default);
     }
 }

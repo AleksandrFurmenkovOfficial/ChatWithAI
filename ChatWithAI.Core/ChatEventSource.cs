@@ -1,9 +1,12 @@
-﻿using RxTelegram.Bot;
-using RxTelegram.Bot.Interface.BaseTypes;
+﻿using ChatWithAI.Contracts.Model;
 using System.Collections.Concurrent;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
+using Telegram.Bot;
+using Telegram.Bot.Polling;
+using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 
 namespace ChatWithAI.Core
 {
@@ -14,6 +17,8 @@ namespace ChatWithAI.Core
         IChatExpireEventSource,
         IDisposable
     {
+        private static readonly TimeSpan RestartCooldown = TimeSpan.FromSeconds(30);
+
         private readonly IChatMessageConverter chatMessageConverter;
         private readonly IAdminChecker adminChecker;
         private readonly Dictionary<string, IChatCommand> commands = [];
@@ -21,39 +26,42 @@ namespace ChatWithAI.Core
 
         private int disposed;
         private readonly ILogger? logger;
-        private readonly CancellationTokenSource cancellationTokenSource = new();
 
-        // Bot state management
-        private static class BotState
-        {
-            public const long Running = 0;
-            public const long RequiresInitialization = 1;
-        }
-        private ITelegramBot? bot;
-        private long telegramBotState = BotState.RequiresInitialization;
+        private CancellationTokenSource receivingCts = new();
+        private readonly SemaphoreSlim lifecycleSync = new(1, 1);
+        private DateTime lastRestartUtc = DateTime.MinValue;
+
+        private ITelegramBotClient? bot;
         private readonly IMessengerBotSource telegramBotSource;
-
-        // Add cache field
         private readonly ChatCache cache;
 
         // Subscription subjects
         private readonly CompositeDisposable subscriptions = [];
 
-        private readonly Subject<EventChatAction> chatActionSubject = new();
+        private readonly ISubject<EventChatAction> chatActionSubject = Subject.Synchronize(new Subject<EventChatAction>());
         public IObservable<EventChatAction> ChatActions => chatActionSubject.AsObservable();
 
-        private readonly Subject<EventChatMessage> chatMessageSubject = new();
+        private readonly ISubject<EventChatMessage> chatMessageSubject = Subject.Synchronize(new Subject<EventChatMessage>());
         public IObservable<EventChatMessage> ChatMessages => chatMessageSubject.AsObservable();
 
-        private readonly Subject<EventChatCommand> chatCommandSubject = new();
+        private readonly ISubject<EventChatCommand> chatCommandSubject = Subject.Synchronize(new Subject<EventChatCommand>());
         public IObservable<EventChatCommand> ChatCommands => chatCommandSubject.AsObservable();
 
-        // Add expire events subject and observable
-        private readonly Subject<EventChatExpire> chatExpireSubject = new();
+        private readonly ISubject<EventChatExpire> chatExpireSubject = Subject.Synchronize(new Subject<EventChatExpire>());
         public IObservable<EventChatExpire> ExpireChats => chatExpireSubject.AsObservable();
 
-        // Update constructor to include cache parameter
-        public ChatEventSource(List<IChatCommand> commands, ConcurrentDictionary<string, ConcurrentDictionary<string, ActionId>> actionsMappingByChat, IMessengerBotSource telegramBotSource, IChatMessageConverter chatMessageConverter, IAdminChecker adminChecker, ChatCache cache, ILogger logger)
+        // Subjects для создания Rx streams из polling
+        private readonly ISubject<CallbackQuery> callbackQuerySubject = Subject.Synchronize(new Subject<CallbackQuery>());
+        private readonly ISubject<Message> messageSubject = Subject.Synchronize(new Subject<Message>());
+
+        public ChatEventSource(
+            List<IChatCommand> commands,
+            ConcurrentDictionary<string, ConcurrentDictionary<string, ActionId>> actionsMappingByChat,
+            IMessengerBotSource telegramBotSource,
+            IChatMessageConverter chatMessageConverter,
+            IAdminChecker adminChecker,
+            ChatCache cache,
+            ILogger logger)
         {
             foreach (var command in commands)
             {
@@ -66,8 +74,6 @@ namespace ChatWithAI.Core
             this.adminChecker = adminChecker ?? throw new ArgumentNullException(nameof(adminChecker));
             this.cache = cache ?? throw new ArgumentNullException(nameof(cache));
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
-            EnsureTelegramListenerIsRunning();
         }
 
         private static bool IsValidCallbackQuery(CallbackQuery? callbackQuery)
@@ -84,16 +90,82 @@ namespace ChatWithAI.Core
                            message.Sticker != null;
             bool hasPhoto = message.Photo != null || message.ReplyToMessage?.Photo != null;
             bool hasAudio = message.Audio != null || message.Voice != null;
-            return hasText || hasPhoto || hasAudio;
+            bool hasDocument = IsPdfDocument(message.Document) || IsPdfDocument(message.ReplyToMessage?.Document);
+            bool hasVideo = message.Video != null || message.VideoNote != null || message.Animation != null ||
+                            message.ReplyToMessage?.Video != null || message.ReplyToMessage?.VideoNote != null || message.ReplyToMessage?.Animation != null ||
+                            IsVideoDocument(message.Document) || IsVideoDocument(message.ReplyToMessage?.Document);
+            //bool hasAnimation = message.Animation != null;
+            return hasText || hasPhoto || hasAudio || hasDocument || hasVideo; // || hasAnimation
         }
 
-        private void EnsureTelegramListenerIsRunning()
+        private static bool IsPdfDocument(Document? document)
         {
-            if (Interlocked.Read(ref telegramBotState) == BotState.Running) return;
+            if (document == null)
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(document.MimeType))
+            {
+                return string.Equals(document.MimeType, "application/pdf", StringComparison.OrdinalIgnoreCase);
+            }
+
+            return document.FileName?.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) == true;
+        }
+
+        private static bool IsVideoDocument(Document? document)
+        {
+            if (document == null)
+            {
+                return false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(document.MimeType))
+            {
+                return document.MimeType.StartsWith("video/", StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (string.IsNullOrWhiteSpace(document.FileName))
+            {
+                return false;
+            }
+
+            return document.FileName.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase)
+                   || document.FileName.EndsWith(".mov", StringComparison.OrdinalIgnoreCase)
+                   || document.FileName.EndsWith(".mkv", StringComparison.OrdinalIgnoreCase)
+                   || document.FileName.EndsWith(".webm", StringComparison.OrdinalIgnoreCase)
+                   || document.FileName.EndsWith(".avi", StringComparison.OrdinalIgnoreCase)
+                   || document.FileName.EndsWith(".mpeg", StringComparison.OrdinalIgnoreCase)
+                   || document.FileName.EndsWith(".mpg", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public Task Run()
+        {
+            return EnsureStartedAsync();
+        }
+
+        private async Task EnsureStartedAsync()
+        {
             if (disposed != 0) return;
 
-            // bot getting is well written and frozen, do not edit with AI!
-            bot = telegramBotSource.NewBot() as ITelegramBot;
+            await lifecycleSync.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (disposed != 0) return;
+                await InitializeBotInternalAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                lifecycleSync.Release();
+            }
+        }
+
+        private async Task InitializeBotInternalAsync()
+        {
+            await telegramBotSource.NewBotAsync().ConfigureAwait(false);
+            if (disposed != 0) return;
+
+            bot = telegramBotSource.Bot() as ITelegramBotClient;
             if (bot == null)
             {
                 throw new ArgumentNullException("The bot is not initialized.");
@@ -101,9 +173,10 @@ namespace ChatWithAI.Core
 
             subscriptions.Clear();
 
-            var callbackSubscription = bot.Updates.CallbackQuery
+            // Setup Rx pipeline for CallbackQueries
+            var callbackSubscription = callbackQuerySubject
                 .Where(IsValidCallbackQuery)
-                .Buffer(TimeSpan.FromMilliseconds(25), 10)
+                .Buffer(TimeSpan.FromMilliseconds(50), 10)
                 .Where(buffer => buffer.Count > 0)
                 .SelectMany(buffer => buffer
                     .OrderBy(cq => cq.Id)
@@ -111,69 +184,128 @@ namespace ChatWithAI.Core
                     .Select(chatGroup => chatGroup.Last())
                     .Select(callbackQuery =>
                     {
-                        var chatId = callbackQuery.From.Id.ToString(CultureInfo.InvariantCulture);
-                        if (!actionsMappingByChat.TryGetValue(chatId, out var chatActions) ||
-                            !chatActions.TryGetValue(callbackQuery.Data, out var actionId))
-                            return null;
+                        try
+                        {
+                            if (callbackQuery.Data == null)
+                                return null;
 
-                        var actionParameters = new ActionParameters(actionId, callbackQuery.Message?.MessageId.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
-                        return new EventChatAction(
-                            chatId,
-                            actionParameters.MessageId,
-                            actionParameters
-                        );
+                            var chatId = callbackQuery.From.Id.ToString(CultureInfo.InvariantCulture);
+                            if (!actionsMappingByChat.TryGetValue(chatId, out var chatActions) ||
+                                !chatActions.TryGetValue(callbackQuery.Data, out var actionId))
+                                return null;
+
+                            var actionParameters = new ActionParameters(actionId, callbackQuery.Message?.MessageId.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
+                            return new EventChatAction(
+                                chatId,
+                                actionParameters.MessageId,
+                                actionParameters
+                            );
+                        }
+                        catch (Exception ex)
+                        {
+                            logger?.LogErrorMessage($"CallbackQuery conversion failed: {ex.Message}");
+                            logger?.LogException(ex);
+                            return null;
+                        }
                     })
                 )
                 .Subscribe(
                     eventChatAction =>
                     {
-                        if (eventChatAction != null)
+                        if (eventChatAction == null)
+                        {
+                            return;
+                        }
+
+                        try
                         {
                             chatActionSubject.OnNext(eventChatAction);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger?.LogErrorMessage($"Error publishing chat action: {ex.Message}");
+                            logger?.LogException(ex);
                         }
                     },
                     error => HandlePipelineError(error, "CallbackQuery pipeline")
                 );
             subscriptions.Add(callbackSubscription);
 
-            var messageSubscription = bot.Updates.Message
+            // Setup Rx pipeline for Messages
+            var messageSubscription = messageSubject
                 .Where(IsValidMessage)
-                .Buffer(TimeSpan.FromMilliseconds(75), 100)
+                .Buffer(TimeSpan.FromMilliseconds(200), 100)
                 .Where(buffer => buffer.Count > 0)
                 .SelectMany(buffer => buffer
                     .OrderBy(m => m.MessageId)
                     .Select(message => Observable.FromAsync(async ct =>
                     {
-                        var username = string.Join("_", message.From.FirstName, message.From.Username, message.From.LastName).Trim('_');
-                        var chatMessage = await chatMessageConverter.ConvertToChatMessage(message, ct).ConfigureAwait(false);
-                        var command = GetChatCommand(message.Chat.Id.ToString(CultureInfo.InvariantCulture), chatMessage, username);
-                        if (command != null)
+                        try
                         {
-                            chatCommandSubject.OnNext(command);
+                            if (message.From == null)
+                                return null;
+
+                            var username = string.Join("_", message.From.FirstName, message.From.Username, message.From.LastName).Trim('_');
+                            var chatMessage = await chatMessageConverter.ConvertToChatMessage(message, ct).ConfigureAwait(false);
+                            if (chatMessage.Content.Count == 0)
+                                return null;
+
+                            var command = GetChatCommand(message.Chat.Id.ToString(CultureInfo.InvariantCulture), chatMessage, username);
+                            if (command != null)
+                            {
+                                try
+                                {
+                                    chatCommandSubject.OnNext(command);
+                                }
+                                catch (Exception ex)
+                                {
+                                    logger?.LogErrorMessage($"Error publishing command: {ex.Message}");
+                                    logger?.LogException(ex);
+                                }
+                                return null;
+                            }
+
+                            return new EventChatMessage(
+                                message.From.Id.ToString(CultureInfo.InvariantCulture),
+                                message.MessageId.ToString(CultureInfo.InvariantCulture),
+                                username,
+                                chatMessage
+                            );
+                        }
+                        catch (OperationCanceledException)
+                        {
                             return null;
                         }
-
-                        return new EventChatMessage(
-                            message.From.Id.ToString(CultureInfo.InvariantCulture),
-                            message.MessageId.ToString(CultureInfo.InvariantCulture),
-                            username,
-                            chatMessage
-                        );
+                        catch (Exception ex)
+                        {
+                            logger?.LogErrorMessage($"Message conversion failed (chatId={message.Chat.Id}, messageId={message.MessageId}): {ex.Message}");
+                            logger?.LogException(ex);
+                            return null;
+                        }
                     }))
                 )
                 .Merge()
                 .Subscribe(
                     eventChatMessage =>
                     {
-                        if (eventChatMessage != null)
+                        if (eventChatMessage == null)
+                            return;
+
+                        try
                         {
                             chatMessageSubject.OnNext(eventChatMessage);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger?.LogErrorMessage($"Error publishing chat message: {ex.Message}");
+                            logger?.LogException(ex);
                         }
                     },
                     error => HandlePipelineError(error, "Message pipeline")
                 );
             subscriptions.Add(messageSubscription);
 
+            // Setup cache expiration subscription
             var cacheExpirationSubscription = cache.ExpirationObservable
                 .Subscribe(
                     expirationArgs =>
@@ -185,64 +317,190 @@ namespace ChatWithAI.Core
                         }
                         catch (Exception ex)
                         {
-                            logger?.LogInfoMessage($"Error processing cache expiration event: {ex.Message}");
+                            logger?.LogErrorMessage($"Error processing cache expiration event: {ex.Message}");
+                            logger?.LogException(ex);
                         }
                     },
                     error => HandlePipelineError(error, "Cache expiration pipeline")
                 );
             subscriptions.Add(cacheExpirationSubscription);
 
-            Interlocked.Exchange(ref telegramBotState, BotState.Running);
+            // Start receiving updates using new API
+            StartReceiving();
+        }
+
+        private void StartReceiving()
+        {
+            if (bot == null) return;
+
+            var receiverOptions = new ReceiverOptions
+            {
+                AllowedUpdates = [UpdateType.Message, UpdateType.CallbackQuery],
+                DropPendingUpdates = true,
+                Limit = 100
+            };
+
+            // Правильная сигнатура - используем делегаты вместо отдельных параметров
+            bot.StartReceiving(
+                updateHandler: HandleUpdateAsync,
+                errorHandler: HandlePollingErrorAsync,
+                receiverOptions: receiverOptions,
+                cancellationToken: receivingCts.Token
+            );
+
+            logger?.LogDebugMessage("Telegram bot polling started.");
+        }
+
+        private Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
+        {
+            try
+            {
+                // Feed updates into Rx subjects
+                if (update.CallbackQuery != null)
+                {
+                    callbackQuerySubject.OnNext(update.CallbackQuery);
+                }
+
+                if (update.Message != null)
+                {
+                    messageSubject.OnNext(update.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger?.LogErrorMessage($"Error processing update {update.Id}: {ex.Message}");
+                logger?.LogException(ex);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        private Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
+        {
+            if (exception is OperationCanceledException)
+            {
+                logger?.LogDebugMessage("Polling cancelled.");
+                return Task.CompletedTask;
+            }
+
+            logger?.LogErrorMessage($"Polling error: {exception.Message}");
+            logger?.LogException(exception);
+
+            _ = RequestRestartAsync("Polling error", exception);
+
+            return Task.CompletedTask;
         }
 
         private void HandlePipelineError(Exception exception, string pipelineName)
         {
             if (exception is OperationCanceledException)
             {
-                logger?.LogInfoMessage($"[{pipelineName}] Rx pipeline subscription cancelled.");
+                logger?.LogDebugMessage($"[{pipelineName}] Rx pipeline subscription cancelled.");
                 return;
             }
-            logger?.LogInfoMessage($"[{pipelineName}] Unhandled error in Rx pipeline: {exception.Message}{Environment.NewLine}{exception.StackTrace}");
-            if (Interlocked.CompareExchange(ref telegramBotState, BotState.RequiresInitialization, BotState.Running) == BotState.Running)
+
+            logger?.LogErrorMessage($"[{pipelineName}] Unhandled error in Rx pipeline: {exception.Message}");
+            logger?.LogException(exception);
+
+            _ = RequestRestartAsync($"Rx pipeline error: {pipelineName}", exception);
+        }
+
+        private async Task RequestRestartAsync(string reason, Exception? exception)
+        {
+            if (disposed != 0) return;
+
+            await lifecycleSync.WaitAsync().ConfigureAwait(false);
+            try
             {
-                logger?.LogInfoMessage($"[{pipelineName}] Marking bot as broken and attempting to recreate listener.");
-                _ = Task.Run(() => EnsureTelegramListenerIsRunning());
+                if (disposed != 0) return;
+
+                var now = DateTime.UtcNow;
+                if (now - lastRestartUtc < RestartCooldown)
+                {
+                    return;
+                }
+                lastRestartUtc = now;
+
+                logger?.LogErrorMessage($"Restarting Telegram polling: {reason}");
+                if (exception != null)
+                {
+                    logger?.LogException(exception);
+                }
+
+                var oldCts = receivingCts;
+                receivingCts = new CancellationTokenSource();
+                try
+                {
+                    oldCts.Cancel();
+                }
+                catch
+                {
+                    // Ignore cancellation races.
+                }
+                oldCts.Dispose();
+
+                try
+                {
+                    subscriptions.Clear();
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogErrorMessage($"Failed to clear subscriptions during restart: {ex.Message}");
+                    logger?.LogException(ex);
+                }
+
+                await InitializeBotInternalAsync().ConfigureAwait(false);
             }
-            else
+            catch (Exception ex)
             {
-                logger?.LogInfoMessage($"[{pipelineName}] Listener already marked as broken or recreation is in progress.");
+                logger?.LogErrorMessage($"Restart failed: {ex.Message}");
+                logger?.LogException(ex);
+            }
+            finally
+            {
+                lifecycleSync.Release();
             }
         }
 
-        private EventChatCommand? GetChatCommand(string chatId, ChatMessage message, string username)
+        private EventChatCommand? GetChatCommand(string chatId, ChatMessageModel message, string username)
         {
             if (message.Content == null || message.Content.Count == 0)
             {
                 return null;
             }
 
-            var textItem = ChatMessage.GetTextContentItem(message).FirstOrDefault();
+            var textItem = message.GetTextContentItems().FirstOrDefault();
             if (string.IsNullOrEmpty(textItem?.Text))
                 return null;
 
-            var text = textItem.Text;
+            string text = textItem.Text;
             foreach ((string commandName, IChatCommand command) in commands.Where(value =>
-                         text.Trim().Contains(value.Key, StringComparison.InvariantCultureIgnoreCase)))
+                        text.Trim().Contains(value.Key, StringComparison.InvariantCultureIgnoreCase)))
             {
                 if (command.IsAdminOnlyCommand && !adminChecker.IsAdmin(chatId))
                 {
                     return null;
                 }
 
-                textItem.Text = text[commandName.Length..];
-                return new EventChatCommand(
-                    chatId,
-                    message.Id.Value,
-                    username,
-                    command,
-                    message,
-                    textItem.Text
-                );
+                var pos = text.IndexOf(commandName, StringComparison.InvariantCultureIgnoreCase);
+                if (pos >= 0)
+                {
+                    var contentStartIndex = pos + commandName.Length;
+                    string arguments = contentStartIndex < text.Length
+                        ? text[contentStartIndex..].Trim().Trim('\"')
+                        : string.Empty;
+
+                    textItem.Text = arguments;
+
+                    return new EventChatCommand(
+                        chatId,
+                        message.Id.Value.ToString(),
+                        username,
+                        command,
+                        message,
+                        textItem.Text
+                    );
+                }
             }
 
             return null;
@@ -252,22 +510,33 @@ namespace ChatWithAI.Core
         {
             if (Interlocked.CompareExchange(ref disposed, 1, 0) != 0) return;
 
-            cancellationTokenSource.Cancel();
-            cancellationTokenSource.Dispose();
+            receivingCts.Cancel();
+
+            // Give some time for ongoing operations to complete
+            Thread.Sleep(500);
+
+            receivingCts.Dispose();
+
+            callbackQuerySubject?.OnCompleted();
+            (callbackQuerySubject as IDisposable)?.Dispose();
+
+            messageSubject?.OnCompleted();
+            (messageSubject as IDisposable)?.Dispose();
 
             chatActionSubject?.OnCompleted();
-            chatActionSubject?.Dispose();
+            (chatActionSubject as IDisposable)?.Dispose();
 
             chatMessageSubject?.OnCompleted();
-            chatMessageSubject?.Dispose();
+            (chatMessageSubject as IDisposable)?.Dispose();
 
             chatCommandSubject?.OnCompleted();
-            chatCommandSubject?.Dispose();
+            (chatCommandSubject as IDisposable)?.Dispose();
 
             chatExpireSubject?.OnCompleted();
-            chatExpireSubject?.Dispose();
+            (chatExpireSubject as IDisposable)?.Dispose();
 
             subscriptions?.Dispose();
+            lifecycleSync.Dispose();
         }
     }
 }
