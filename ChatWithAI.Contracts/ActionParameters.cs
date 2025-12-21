@@ -1,4 +1,4 @@
-﻿namespace ChatWithAI.Contracts
+namespace ChatWithAI.Contracts
 {
     public readonly struct ActionParameters(ActionId actionId, string messageId)
     {

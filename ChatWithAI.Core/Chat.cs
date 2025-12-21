@@ -1,427 +1,434 @@
-﻿using ChatWithAI.Contracts.Configs;
+using ChatWithAI.Contracts.Configs;
+using ChatWithAI.Contracts.Model;
+using ChatWithAI.Core.ChatCommands;
 using ChatWithAI.Core.ChatMessageActions;
-using System.Diagnostics;
+using ChatWithAI.Core.StateMachine;
+using ChatWithAI.Core.ViewModel;
+using System.Text;
+using MessageId = ChatWithAI.Contracts.MessageId;
 
 namespace ChatWithAI.Core
 {
-    public sealed class Chat(AppConfig config, string chatId, IAiAgentFactory aiAgentFactory, IMessenger messenger, ILogger logger, ChatCache cache, bool useExpiration) : IChat
+    public sealed partial class Chat(
+        AppConfig config,
+        string chatId,
+        IAiAgentFactory aiAgentFactory,
+        IMessenger messenger,
+        ILogger logger,
+        ChatCache cache,
+        bool useExpiration) : IChatInternal, IDisposable
     {
-        private const int MessageUpdateStepInCharsCount = 84;
+        private static readonly CompositeFormat StartWarningFormat = CompositeFormat.Parse(Strings.StartWarning);
 
         private IAiAgent? aiAgent;
         private ChatMode? chatMode;
+        internal IMessenger Messenger => messenger;
+        internal ILogger Logger => logger;
+        public ChatMode GetMode() => chatMode ?? throw new ArgumentNullException(nameof(chatMode));
+        private string GetStateCacheKey() => $"{Id}_state";
+        public string Id { get; } = chatId;
 
-        private List<ChatTurn> GetTurns()
+        
+        public void Dispose()
         {
-            var cacheData = cache.Get<List<ChatTurn>>(Id);
-            if (cacheData == null || cacheData.Count == 0)
-                return [];
+            if (aiAgent is IDisposable disposableAgent)
+            {
+                disposableAgent.Dispose();
+            }
+        }
 
+        
+        public Task SetModeAsync(ChatMode mode)
+        {
+            chatMode = mode;
+            var old = aiAgent;
+            aiAgent = aiAgentFactory.CreateAiAgent(mode.AiName, mode.AiSettings, mode.UseFunctions, mode.UseImage, mode.UseFlash);
+            if (old is IDisposable disposableOld) disposableOld.Dispose();
+            return Task.CompletedTask;
+        }
+
+        #region State Management
+
+        private ChatState GetOrCreateState()
+        {
+            var cacheData = cache.Get<ChatState>(GetStateCacheKey());
+            if (cacheData == null)
+            {
+                cacheData = new ChatState(Id, messenger.MaxTextMessageLen(), messenger.MaxPhotoMessageLen());
+                SaveState(cacheData);
+            }
             return cacheData;
         }
 
-        private void SetTurns(List<ChatTurn> turns)
+        private void SaveState(ChatState state)
         {
-            if (turns.Count == 0)
-            {
-                cache.Remove(Id);
-                return;
-            }
-
             var expiration = TimeSpan.MaxValue;
             if (useExpiration)
             {
                 expiration = TimeSpan.FromMinutes(config.ChatCacheAliveInMinutes);
             }
-
-            cache.Set(Id, turns, expiration);
+            cache.Set(GetStateCacheKey(), state, expiration);
         }
 
-        public string Id { get; } = chatId;
-
-        public async Task SendSomethingGoesWrong(CancellationToken cancellationToken)
+        private void ClearCache()
         {
-            var message = new ChatMessage([ChatMessage.CreateText(Strings.SomethingGoesWrong)]);
-            var messageId = await messenger.SendTextMessage(Id, message, [RetryAction.Id], cancellationToken).ConfigureAwait(false);
-            message.Id = new MessageId(messageId);
-
-            AddAnswerMessage(message);
+            cache.Remove(GetStateCacheKey());
         }
 
-        public Task SendSystemMessage(string content, CancellationToken cancellationToken = default)
+        #endregion
+
+        #region Public API (IChatInternal Implementation)
+
+        public Task AddUserMessagesToChatHistoryAsync(List<ChatMessageModel> messages, bool forceOldTurn = false)
         {
-            return messenger.SendTextMessage(Id, new ChatMessage { Content = [ChatMessage.CreateText(content)] }, null, cancellationToken);
+            var state = GetOrCreateState();
+            state.History.AddUserMessages(messages, forceOldTurn);
+            SaveState(state);
+            return Task.CompletedTask;
         }
 
-        public void AddMessages(List<ChatMessage> messages)
+        
+        public async Task OnEnterWaitingForFirstMessageAsync()
         {
-            ResetLastMessageButtons().GetAwaiter().GetResult();
-            AddNewUsersMessages(messages);
+            await ResetInternal().ConfigureAwait(false);
+            string modeNameFull = GetMode().AiName.Split("_")[1];
+            var mode = modeNameFull.Replace("Mode", "");
+            var note = mode != SetCommonMode.StaticName ? "\n" + Strings.ReturnNote : "";
+            var msg = string.Format(CultureInfo.InvariantCulture, StartWarningFormat, mode, note);
+            await messenger.SendTextMessage(Id, new MessengerMessageDTO { TextContent = msg }).ConfigureAwait(false);
         }
 
-        public async Task DoResponseToLastMessage(CancellationToken cancellationToken)
+        
+        public async Task OnEnterErrorAsync()
         {
-            await ResetLastMessageButtons().ConfigureAwait(false);
-            await SendResponseTargetMessage(cancellationToken).ConfigureAwait(false);
-            await DoStreamResponseToLastMessage(cancellationToken).ConfigureAwait(false);
-        }
-
-        public async Task Reset(CancellationToken cancellationToken)
-        {
-            await ResetLastMessageButtons().ConfigureAwait(false);
-            Clear();
-        }
-
-        private void Clear()
-        {
-            var turns = GetTurns();
-            turns.Clear();
-            SetTurns(turns);
-        }
-
-        public async Task RegenerateLastResponse(CancellationToken cancellationToken)
-        {
-            await RemoveResponse(default).ConfigureAwait(false);
-            await SendResponseTargetMessage(default).ConfigureAwait(false);
-            await DoStreamResponseToLastMessage(cancellationToken).ConfigureAwait(false);
-        }
-
-        public async Task ContinueLastResponse(CancellationToken cancellationToken)
-        {
-            AddMessages([new ChatMessage([ChatMessage.CreateText(Strings.Continue)],
-                MessageRole.eRoleUser, Strings.RoleSystem)]);
-            await DoResponseToLastMessage(cancellationToken).ConfigureAwait(false);
-        }
-
-        public async Task RemoveResponse(CancellationToken cancellationToken)
-        {
-            var turns = GetTurns();
-            if (turns.Count == 0)
-                return;
-
-            var lastTurn = turns.Last();
-            if (lastTurn.Count == 0)
-                return;
-
-            foreach (var message in lastTurn.Where(message => message.IsSent))
-            {
-                try
-                {
-                    await messenger.DeleteMessage(Id, message.Id, cancellationToken).ConfigureAwait(false);
-                    message.IsSent = false;
-                }
-                catch (Exception e)
-                {
-                    logger?.LogException(e);
-                }
-            }
-
-            lastTurn.RemoveRange(1, lastTurn.Count - 1);
-            SetTurns(turns);
-        }
-
-        private async Task ResetLastMessageButtons()
-        {
-            var turns = GetTurns();
-            if (turns.Count == 0)
-                return;
-
-            try
-            {
-                ChatMessage? lastMessage = null;
-                ChatTurn? turnOfLastMessage = null;
-
-                foreach (var turn in Enumerable.Reverse(turns))
-                {
-                    var lastSentMessageInTurn = turn.LastOrDefault(m => m.IsSent);
-                    if (lastSentMessageInTurn != null)
-                    {
-                        lastMessage = lastSentMessageInTurn;
-                        turnOfLastMessage = turn;
-                        break;
-                    }
-                }
-
-                if (lastMessage == null)
-                    return;
-
-                if (!lastMessage.IsActive)
-                    return;
-
-                var lastMessageContent = lastMessage.Content;
-                bool isEmpty = lastMessageContent == null
-                    || lastMessageContent.Count == 0
-                    || (string.IsNullOrEmpty(lastMessageContent.OfType<TextContentItem>().FirstOrDefault()?.Text)
-                       && string.IsNullOrEmpty(lastMessageContent.OfType<ImageContentItem>().FirstOrDefault()?.ImageInBase64));
-
-                if (isEmpty && turnOfLastMessage != null)
-                {
-                    turnOfLastMessage.Remove(lastMessage);
-                    if (turnOfLastMessage.Count == 0)
-                    {
-                        turns.Remove(turnOfLastMessage);
-                        SetTurns(turns);
-                    }
-                    await messenger.DeleteMessage(Id, lastMessage.Id, default).ConfigureAwait(false);
-                }
-                else
-                {
-                    await UpdateMessage(lastMessage, lastMessageContent!, null, default).ConfigureAwait(false);
-                    lastMessage.IsActive = false;
-                }
-            }
-            catch (Exception e)
-            {
-                logger?.LogException(e);
-            }
-        }
-
-        private async Task UpdateMessage(ChatMessage message, List<ContentItem> newContent,
-            IEnumerable<ActionId>? newActions = null, CancellationToken cancellationToken = default)
-        {
-            Debug.WriteLine("UpdateMessage");
-            try
-            {
-                var newText = newContent.OfType<TextContentItem>().FirstOrDefault()?.Text ?? Strings.InitAnswerTemplate;
-                if (ChatMessage.IsPhotoMessage(message))
-                {
-                    Debug.WriteLine("IsPhotoMessage newText=" + newText);
-                    await messenger.EditPhotoMessage(Id, message.Id, newText, newActions, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-                else
-                {
-                    Debug.WriteLine("EditTextMessage newText=" + newText);
-                    await messenger.EditTextMessage(Id, message.Id, newText, newActions, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-            }
-            catch (Exception e)
-            {
-                logger?.LogException(e);
-            }
-        }
-
-        private void AddNewUsersMessages(List<ChatMessage> newMessagesFromUser)
-        {
-            var turns = GetTurns();
-            turns.Add([.. newMessagesFromUser]);
-            SetTurns(turns);
-        }
-
-        private void AddAnswerMessage(ChatMessage responseTargetMessage)
-        {
-            var turns = GetTurns();
-            turns.Last().Add(responseTargetMessage);
-            SetTurns(turns);
-        }
-
-        private async Task DoStreamResponseToLastMessage(CancellationToken cancellationToken = default)
-        {
-            var turns = GetTurns();
-            var messagesState = turns.SelectMany(subList => subList.Select(item => item.Clone()).ToList()).ToList();
-            Func<ResponseStreamChunk, Task<bool>> resultGetter = (chunk) => ProcessResponseStreamChunkAsync(chunk, cancellationToken);
-            await aiAgent!.GetResponse(Id, messagesState, resultGetter, cancellationToken).ConfigureAwait(false);
-        }
-
-        private async Task<bool> ProcessResponseStreamChunkAsync(
-            ResponseStreamChunk contentDelta,
-            CancellationToken cancellationToken = default)
-        {
-            var turns = GetTurns();
-            if (cancellationToken.IsCancellationRequested || turns == null || turns.Count == 0 || turns.Last() == null || turns.Last().Count == 0)
-                return true;
-
-            var sentMessages = turns.Last().Where(m => m.IsSent);
-            if (!sentMessages.Any())
-                return true;
-
-            try
-            {
-                var responseTargetMessage = turns.Last().Where(m => m.IsSent).Last();
-
-                bool isDeltaHaveOnlyTextContent = contentDelta.Messages == null || contentDelta.Messages.Count == 0;
-                var isFinalMessageUpdate = contentDelta is LastResponseStreamChunk || cancellationToken.IsCancellationRequested;
-                if (isDeltaHaveOnlyTextContent || isFinalMessageUpdate)
-                {
-                    var textContent = ChatMessage.GetTextContentItem(responseTargetMessage)[0];
-                    textContent.Text += contentDelta.TextDelta ?? "";
-
-                    string extraDelta = "";
-                    CutMessageContent(responseTargetMessage, ref extraDelta);
-
-                    if ((textContent.Text.Length % MessageUpdateStepInCharsCount) != 1 || isFinalMessageUpdate)
-                    {
-                        await UpdateTargetMessage(responseTargetMessage, isFinalMessageUpdate, default).ConfigureAwait(false);
-                    }
-
-                    if (!string.IsNullOrEmpty(extraDelta))
-                    {
-                        await SendResponseTargetMessage(default).ConfigureAwait(false);
-
-                        // We need to get turns again as SendResponseTargetMessage may have updated it
-                        turns = GetTurns();
-                        var newResponseTargetMessage = turns.Last().Where(m => m.IsSent).Last();
-                        TextContentItem? textContentNew = newResponseTargetMessage.Content.OfType<TextContentItem>().FirstOrDefault();
-                        if (textContentNew != null)
-                        {
-                            textContentNew.Text = extraDelta;
-                        }
-
-                        await UpdateTargetMessage(newResponseTargetMessage, isFinalMessageUpdate, default).ConfigureAwait(false);
-
-                        // Reset buttons on previous
-                        await UpdateMessage(responseTargetMessage, responseTargetMessage.Content, null, default).ConfigureAwait(false);
-                    }
-
-                    SetTurns(turns);
-                    return isFinalMessageUpdate;
-                }
-
-                return await ProcessFunctionResult(responseTargetMessage, contentDelta, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                logger?.LogException(e);
-                return true;
-            }
-        }
-
-        private void CutMessageContent(ChatMessage responseTargetMessage, ref string extraDelta)
-        {
-            extraDelta = "";
-            var textContent = responseTargetMessage.Content.OfType<TextContentItem>().FirstOrDefault();
-            if (string.IsNullOrEmpty(textContent?.Text))
-                return;
-
-            string fullContentCopy = (string)textContent.Text.Clone();
-            bool hasMedia = ChatMessage.IsPhotoMessage(responseTargetMessage);
-            switch (hasMedia)
-            {
-                case true when fullContentCopy.Length > messenger.MaxPhotoMessageLen():
-                    textContent.Text = fullContentCopy[..messenger.MaxPhotoMessageLen()];
-                    extraDelta = fullContentCopy[messenger.MaxPhotoMessageLen()..];
-                    break;
-                case false when fullContentCopy.Length > messenger.MaxTextMessageLen():
-                    textContent.Text = fullContentCopy[..messenger.MaxTextMessageLen()];
-                    extraDelta = fullContentCopy[messenger.MaxTextMessageLen()..];
-                    break;
-            }
-        }
-
-        private async Task<bool> ProcessFunctionResult(
-            ChatMessage responseTargetMessage,
-            ResponseStreamChunk contentDelta,
-            CancellationToken cancellationToken = default)
-        {
-            var functionCallMessage = contentDelta.Messages.First();
-            AddAnswerMessage(functionCallMessage);
-
-            var functionResultMessage = contentDelta.Messages.Last();
-            AddAnswerMessage(functionResultMessage);
-
-            bool imageMessage = ChatMessage.IsPhotoMessage(functionResultMessage);
-            if (imageMessage)
-            {
-                var turns = GetTurns();
-                var textContent = ChatMessage.GetTextContentItem(responseTargetMessage)[0];
-                textContent.Text = (textContent.Text == Strings.InitAnswerTemplate ? "" : textContent.Text) ?? "";
-                var previousTextContent = textContent.Text;
-
-                await messenger.DeleteMessage(Id, responseTargetMessage.Id, default)
-                    .ConfigureAwait(false);
-
-                List<ContentItem> newContent = [ChatMessage.CreateText(previousTextContent)];
-
-                var functionResultMessages = ChatMessage.GetImageContentItem(functionResultMessage);
-
-                foreach (var image in functionResultMessages)
-                {
-                    newContent.Add(image);
-                }
-
-                var responseTargetMessageNew = new ChatMessage()
-                {
-                    Name = aiAgent?.AiName ?? Strings.DefaultName,
-                    Role = MessageRole.eRoleAI,
-                    Content = newContent
-                };
-
-                responseTargetMessageNew.Id = new MessageId(await messenger.SendPhotoMessage(Id, responseTargetMessageNew, [StopAction.Id], cancellationToken).ConfigureAwait(false));
-
-                AddAnswerMessage(responseTargetMessageNew);
-                responseTargetMessage = responseTargetMessageNew;
-
-                SetTurns(turns);
-            }
-
-            await DoStreamResponseToLastMessage(cancellationToken).ConfigureAwait(false);
-            return true;
-        }
-
-        private async Task UpdateTargetMessage(ChatMessage responseTargetMessage, bool finalUpdate,
-            CancellationToken cancellationToken = default)
-        {
-            bool hasContent = ChatMessage.GetTextContentItem(responseTargetMessage)[0].Text?.Length > 0;
-            var newContent = hasContent ? responseTargetMessage.Content : [ChatMessage.CreateText(Strings.InitAnswerTemplate)];
-            List<ActionId> actionsByContent = hasContent ? [ContinueAction.Id, RegenerateAction.Id] : [RetryAction.Id];
-            List<ActionId> actions = finalUpdate ? actionsByContent : [StopAction.Id];
-
-            // Fix for google models
-            if (finalUpdate)
-            {
-                var textContent = newContent.OfType<TextContentItem>().FirstOrDefault();
-                if (textContent != null && textContent.Text != null)
-                {
-                    var lastTagToRemove = "Here is the original image:";
-                    if (textContent.Text.EndsWith(lastTagToRemove, StringComparison.InvariantCulture))
-                    {
-                        textContent.Text = textContent.Text[..^lastTagToRemove.Length];
-                    }
-                }
-            }
-
-            await UpdateMessage(responseTargetMessage, newContent, actions, cancellationToken).ConfigureAwait(false);
-        }
-
-        private async Task<ChatMessage> SendResponseTargetMessage(CancellationToken cancellationToken)
-        {
-            var responseTargetMessage = new ChatMessage
+            var errorMessage = new ChatMessageModel
             {
                 Role = MessageRole.eRoleAI,
                 Name = chatMode?.AiName ?? Strings.DefaultName,
-                Content = [ChatMessage.CreateText(Strings.InitAnswerTemplate)]
+                Content = [ChatMessageModel.CreateText(Strings.ErrorTryAgain)]
             };
 
-            responseTargetMessage.Id = new MessageId(await messenger
-                .SendTextMessage(Id, responseTargetMessage, [CancelAction.Id], cancellationToken)
-                .ConfigureAwait(false));
+            var state = GetOrCreateState();
+            state.History.AddAssistantMessage(errorMessage);
+            SaveState(state);
 
-            responseTargetMessage.Content = [ChatMessage.CreateText("")];
+            // Create UI message and send
+            var uiMessage = state.UIState.CreateInitialUIMessage(errorMessage, [RetryAction.Id]);
+            uiMessage.TextContent = Strings.ErrorTryAgain;
 
-            AddAnswerMessage(responseTargetMessage);
-            return responseTargetMessage;
+            await SendUIMessageToMessenger(uiMessage).ConfigureAwait(false);
+            SaveState(state);
         }
 
-        public void SetMode(ChatMode mode)
+        
+        public async Task OnExitErrorAsync()
         {
-            chatMode = mode;
-            RecreateAiAgent();
+            var state = GetOrCreateState();
+            var errorMessage = state.History.GetLastAssistantMessage();
+            if (errorMessage != null)
+            {
+                state.History.RemoveMessageFromLastTurn(errorMessage);
+                SaveState(state);
+
+                await DeleteUIMessagesForModel(errorMessage.Id).ConfigureAwait(false);
+            }
         }
 
-        public void RecreateAiAgent()
+        
+        public async Task<ChatOperationResult> InitiateResponseAsync(CancellationToken ct)
         {
-            var old = aiAgent;
-            aiAgent = aiAgentFactory.CreateAiAgent(chatMode!.AiName, chatMode!.AiSettings, true);
-            if (old is IDisposable disposableOld) disposableOld.Dispose();
+            logger.LogDebugMessage($"Chat {Id}: InitiateResponseAsync");
+
+            await RemoveLatestButtonsFromUIInternal().ConfigureAwait(false);
+            return await DoResponseToLastMessageInternal(ct).ConfigureAwait(false);
         }
 
-        public ChatMode GetMode()
+        
+        public async Task<ChatOperationResult> ContinueResponseAsync(CancellationToken ct)
         {
-            if (chatMode == null)
-                throw new ArgumentNullException(nameof(chatMode));
+            logger.LogDebugMessage($"Chat {Id}: ContinueResponseAsync");
 
-            return chatMode;
+            var prevLastMessage = GetLastResponseModelMessage();
+            var systemMessagePleaseContinue = new ChatMessageModel([ChatMessageModel.CreateText(Strings.Continue)], MessageRole.eRoleUser, Strings.RoleSystem);
+
+            var state = GetOrCreateState();
+            state.History.AddUserMessages([systemMessagePleaseContinue], forceAddToLastTurn: true);
+            SaveState(state);
+
+            await RemoveLatestButtonsFromUIInternal().ConfigureAwait(false);
+
+            var result = await DoResponseToLastMessageInternal(ct,
+                onCleanup: async () =>
+                {
+                    // If regenerate command was cancelled we should return buttons on cancel
+                    if (prevLastMessage != null)
+                    {
+                        await UpdateUIMessageWithButtons(prevLastMessage.Id, [ContinueAction.Id, RegenerateAction.Id]).ConfigureAwait(false);
+                    }
+
+                    var state = GetOrCreateState();
+                    state.History.RemoveMessageFromLastTurn(systemMessagePleaseContinue);
+                    SaveState(state);
+
+                }).ConfigureAwait(false);
+
+            return result;
         }
+
+        
+        public async Task<ChatOperationResult> RegenerateResponseAsync(CancellationToken ct)
+        {
+            logger.LogDebugMessage($"Chat {Id}: RegenerateResponseAsync");
+
+            await RemoveAllResponseFromLastTurnAndClearUIInternal().ConfigureAwait(false);
+            return await DoResponseToLastMessageInternal(ct).ConfigureAwait(false);
+        }
+
+        #endregion
+
+        #region Internal Operations
+
+        private async Task ResetInternal()
+        {
+            await RemoveLatestButtonsFromUIInternal().ConfigureAwait(false);
+            ClearCache();
+        }
+
+        private async Task RemoveAllResponseFromLastTurnAndClearUIInternal()
+        {
+            var state = GetOrCreateState();
+            var removedMessages = state.History.RemoveAllAssistantMessagesFromLastTurn();
+            SaveState(state);
+
+            foreach (var modelMsg in removedMessages)
+            {
+                await DeleteUIMessagesForModel(modelMsg.Id).ConfigureAwait(false);
+            }
+        }
+
+        private async Task<UIMessageViewModel?> RemoveLatestButtonsFromUIInternal()
+        {
+            var state = GetOrCreateState();
+            var messageWithButtons = state.UIState.ClearActiveButtons();
+            if (messageWithButtons != null && messageWithButtons.IsSent)
+            {
+                await UpdateUIMessageInMessenger(messageWithButtons, null).ConfigureAwait(false);
+            }
+            SaveState(state);
+            return messageWithButtons;
+        }
+
+        private ChatMessageModel? GetLastResponseModelMessage()
+        {
+            return GetOrCreateState().History.GetLastAssistantMessage();
+        }
+
+        private async Task<ChatMessageModel> CreateAndSendResponseTargetMessage()
+        {
+            var responseMessage = new ChatMessageModel
+            {
+                Role = MessageRole.eRoleAI,
+                Name = chatMode?.AiName ?? Strings.DefaultName,
+                Content = [ChatMessageModel.CreateText(string.Empty)]
+            };
+
+            var state = GetOrCreateState();
+            state.History.AddAssistantMessage(responseMessage);
+            SaveState(state);
+
+            // Create initial UI message with placeholder
+            var uiMessage = state.UIState.CreateInitialUIMessage(responseMessage, [CancelAction.Id]);
+            uiMessage.TextContent = Strings.InitAnswerTemplate;
+
+            await SendUIMessageToMessenger(uiMessage).ConfigureAwait(false);
+            SaveState(state);
+
+            // Clear content after send (actual content will come from stream)
+            uiMessage.TextContent = string.Empty;
+
+            return responseMessage;
+        }
+
+        private async Task<ChatOperationResult> DoResponseToLastMessageInternal(CancellationToken ct, Func<Task>? onCleanup = null)
+        {
+            if (aiAgent == null)
+                throw new InvalidOperationException("AI agent is not initialized");
+
+            var allMessagesSnapshot = GetOrCreateState().History.GetAllMessagesForAI();
+            allMessagesSnapshot = FilterVideoContentIfNeeded(allMessagesSnapshot);
+            ChatMessageModel? targetMsg = null;
+
+            try
+            {
+                targetMsg = await CreateAndSendResponseTargetMessage().ConfigureAwait(false);
+                var responseStream = await aiAgent.GetResponseStreamAsync(Id, allMessagesSnapshot, ct).ConfigureAwait(false);
+                var streamingContext = new StreamingContext(responseStream, ct);
+                return ChatOperationResult.Success(streamingContext);
+            }
+            catch (OperationCanceledException)
+            {
+                await OnCancelDoResponseToLastMessageInternal(targetMsg, onCleanup).ConfigureAwait(false);
+                return ChatOperationResult.Failure(ChatTrigger.UserCancel);
+            }
+            catch (Exception ex)
+            {
+                await OnErrorDoResponseToLastMessageInternal(targetMsg, onCleanup, ex).ConfigureAwait(false);
+                return ChatOperationResult.Failure(ChatTrigger.AIResponseError);
+            }
+        }
+
+        private async Task OnErrorDoResponseToLastMessageInternal(ChatMessageModel? targetMsg, Func<Task>? onCleanup, Exception ex)
+        {
+            logger.LogErrorMessage($"Chat {Id}: Error getting response stream: {ex.Message}");
+            await CleanupAfterExceptionInDoResponseToLastMessageInternal(targetMsg, onCleanup).ConfigureAwait(false);
+        }
+
+        private async Task OnCancelDoResponseToLastMessageInternal(ChatMessageModel? targetMsg, Func<Task>? onCleanup)
+        {
+            logger.LogDebugMessage($"Chat {Id}: Response request was cancelled, cleaning up");
+            await CleanupAfterExceptionInDoResponseToLastMessageInternal(targetMsg, onCleanup).ConfigureAwait(false);
+        }
+
+        private async Task CleanupAfterExceptionInDoResponseToLastMessageInternal(ChatMessageModel? targetMsg, Func<Task>? onCleanup)
+        {
+            if (targetMsg != null)
+            {
+                await RemoveSpecificResponseFromLastTurnAndClearUIInternal(targetMsg).ConfigureAwait(false);
+            }
+            else
+            {
+                await RemoveAllResponseFromLastTurnAndClearUIInternal().ConfigureAwait(false);
+            }
+
+            if (onCleanup != null)
+                await onCleanup().ConfigureAwait(false);
+        }
+
+        private async Task RemoveSpecificResponseFromLastTurnAndClearUIInternal(ChatMessageModel targetMsg)
+        {
+            var state = GetOrCreateState();
+            var removed = state.History.RemoveMessageFromLastTurn(targetMsg);
+            SaveState(state);
+
+            if (removed)
+            {
+                await DeleteUIMessagesForModel(targetMsg.Id).ConfigureAwait(false);
+            }
+        }
+
+#pragma warning disable CA1822 // Mark members as static
+        private List<ChatMessageModel> FilterVideoContentIfNeeded(List<ChatMessageModel> messages)
+#pragma warning restore CA1822 // Mark members as static
+        {
+            return messages;
+            //
+            //if (chatMode?.UseFlash == true)
+            //{
+            //    return messages;
+            //}
+            //
+            //return messages
+            //    .Select(m =>
+            //    {
+            //        if (!m.HasVideo() && !m.HasDocument())
+            //        {
+            //            return m;
+            //        }
+            //
+            //        var clone = m.Clone();
+            //        
+            //        clone.Content.RemoveAll(c => c is DocumentContentItem); // VideoContentItem or 
+            //
+            //        if (clone.IsEmpty())
+            //        {
+            //            clone.AddTextContent(Strings.DocumentNotSupported);
+            //        }
+            //        else
+            //        {
+            //            clone.GetTextContentItems().Last().Text += "\nAdditional note: " + Strings.DocumentNotSupported + "\n";
+            //        }
+            //
+            //        return clone;
+            //    })
+            //    .ToList();
+        }
+
+        #endregion
+
+        #region UI Operations (ViewModel Layer)
+
+        private async Task SendUIMessageToMessenger(UIMessageViewModel uiMessage)
+        {
+            var dto = new MessengerMessageDTO
+            {
+                Role = uiMessage.Role,
+                Name = uiMessage.Name,
+                TextContent = uiMessage.TextContent,
+                MediaContent = [.. uiMessage.MediaContent]
+            };
+
+            var actions = uiMessage.ActiveButtons;
+
+            string messengerMsgId;
+            if (uiMessage.HasImage)
+            {
+                messengerMsgId = await messenger.SendPhotoMessage(Id, dto, actions).ConfigureAwait(false);
+            }
+            else
+            {
+                messengerMsgId = await messenger.SendTextMessage(Id, dto, actions).ConfigureAwait(false);
+            }
+
+            ChatUIState.MarkAsSent(uiMessage, new MessageId(messengerMsgId));
+
+            var state = GetOrCreateState();
+            state.History.UpdateMessageOriginalId(uiMessage.ParentModelId, Helpers.MessageIdToInt(new MessageId(messengerMsgId)));
+            SaveState(state);
+        }
+
+        private async Task UpdateUIMessageInMessenger(UIMessageViewModel uiMessage, IEnumerable<ActionId>? newActions)
+        {
+            if (!uiMessage.IsSent) return;
+
+            if (uiMessage.HasImage)
+            {
+                await messenger.EditPhotoMessage(Id, uiMessage.MessengerMessageId, uiMessage.TextContent, newActions).ConfigureAwait(false);
+            }
+            else
+            {
+                await messenger.EditTextMessage(Id, uiMessage.MessengerMessageId, uiMessage.TextContent, newActions).ConfigureAwait(false);
+            }
+        }
+
+        private async Task DeleteUIMessagesForModel(ModelMessageId modelId)
+        {
+            var state = GetOrCreateState();
+            var uiMessages = state.UIState.RemoveUIMessages(modelId);
+            SaveState(state);
+
+            // Delete in reverse order (last first)
+            for (int i = uiMessages.Count - 1; i >= 0; i--)
+            {
+                var uiMsg = uiMessages[i];
+                if (uiMsg.IsSent)
+                {
+                    await messenger.DeleteMessage(Id, uiMsg.MessengerMessageId).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private async Task UpdateUIMessageWithButtons(ModelMessageId modelId, List<ActionId> buttons)
+        {
+            var state = GetOrCreateState();
+            var lastUI = state.UIState.GetLastUIMessage(modelId);
+            if (lastUI != null)
+            {
+                state.UIState.SetActiveButtons(lastUI, buttons);
+                await UpdateUIMessageInMessenger(lastUI, buttons).ConfigureAwait(false);
+                SaveState(state);
+            }
+        }
+
+        #endregion
     }
 }

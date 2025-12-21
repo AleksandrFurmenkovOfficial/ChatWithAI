@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using ChatWithAI.Contracts.Model;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -8,19 +9,13 @@ namespace ChatWithAI.Contracts
     {
         string Id { get; }
 
-        void AddMessages(List<ChatMessage> messages);
-        Task DoResponseToLastMessage(CancellationToken cancellationToken = default);
-
-        void SetMode(ChatMode mode);
         ChatMode GetMode();
+        Task SetMode(ChatMode mode);
+        Task Reset();
 
-        void RecreateAiAgent();
-
-        Task SendSomethingGoesWrong(CancellationToken cancellationToken = default);
-        Task SendSystemMessage(string content, CancellationToken cancellationToken = default);
-        Task RemoveResponse(CancellationToken cancellationToken = default);
-        Task Reset(CancellationToken cancellationToken = default);
-        Task RegenerateLastResponse(CancellationToken cancellationToken = default);
-        Task ContinueLastResponse(CancellationToken cancellationToken = default);
+        Task AddMessages(List<ChatMessageModel> messages);
+        Task DoResponseToLastMessage(CancellationToken ct);
+        Task ContinueLastResponse(CancellationToken ct);
+        Task RegenerateLastResponse(CancellationToken ct);
     }
 }

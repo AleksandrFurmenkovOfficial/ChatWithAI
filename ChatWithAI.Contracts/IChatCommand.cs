@@ -1,4 +1,5 @@
-﻿using System.Threading;
+using ChatWithAI.Contracts.Model;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ChatWithAI.Contracts
@@ -7,6 +8,6 @@ namespace ChatWithAI.Contracts
     {
         string Name { get; }
         bool IsAdminOnlyCommand { get; }
-        Task Execute(IChat chat, ChatMessage message, CancellationToken cancellationToken = default);
+        Task Execute(IChat chat, ChatMessageModel message, CancellationToken cancellationToken = default);
     }
 }

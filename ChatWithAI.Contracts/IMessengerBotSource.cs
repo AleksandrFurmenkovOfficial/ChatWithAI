@@ -1,8 +1,10 @@
-﻿namespace ChatWithAI.Contracts
+using System.Threading.Tasks;
+
+namespace ChatWithAI.Contracts
 {
     public interface IMessengerBotSource
     {
-        object NewBot();
-        object Bot();
+        Task NewBotAsync();
+        object? Bot();
     }
 }

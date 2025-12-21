@@ -1,22 +1,36 @@
-﻿using ChatWithAI.Core.ChatCommands;
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 
 namespace ChatWithAI.Core
 {
-    public class AccessChecker(IAdminChecker adminChecker, ConcurrentDictionary<string, IAppVisitor> visitorByChatId, IAccessStorage accessStorage)
+    public class AccessChecker
     {
-        private readonly HashSet<string> allowed = [];
-        private readonly HashSet<string> premium = [];
-        private int isInitialized;
+        private readonly IAdminChecker _adminChecker;
+        private readonly IAccessStorage _accessStorage;
+        private readonly ConcurrentDictionary<string, AppVisitor> _visitorByChatId;
 
-        public bool HasAccess(string chatId, string username)
+        private readonly Lazy<Task<AccessData>> _dataLoader;
+
+        public AccessChecker(
+            IAdminChecker adminChecker,
+            ConcurrentDictionary<string, AppVisitor> visitorByChatId,
+            IAccessStorage accessStorage)
         {
-            if (Interlocked.Exchange(ref isInitialized, 1) == 0)
-                Initialize();
+            _adminChecker = adminChecker;
+            _visitorByChatId = visitorByChatId;
+            _accessStorage = accessStorage;
 
-            var visitor = visitorByChatId.GetOrAdd(chatId, id =>
+            _dataLoader = new Lazy<Task<AccessData>>(LoadDataAsync);
+        }
+
+        public async Task<bool> HasAccessAsync(string chatId, string username)
+        {
+            var data = await _dataLoader.Value.ConfigureAwait(false);
+
+            var visitor = _visitorByChatId.GetOrAdd(chatId, id =>
             {
-                bool accessByDefault = allowed.Contains(chatId) || adminChecker.IsAdmin(chatId);
+                bool accessByDefault = data.AllowedUsers.Contains(chatId) ||
+                                     _adminChecker.IsAdmin(chatId);
                 return new AppVisitor(accessByDefault, username, DateTime.UtcNow);
             });
 
@@ -24,33 +38,33 @@ namespace ChatWithAI.Core
             return visitor.Access;
         }
 
-        public bool IsPremiumUser(string chatId)
+        public async Task<bool> IsPremiumUserAsync(string chatId)
         {
-            if (Interlocked.Exchange(ref isInitialized, 1) == 0)
-                Initialize();
-
-            return premium.Contains(chatId);
+            var data = await _dataLoader.Value.ConfigureAwait(false);
+            return data.PremiumUsers.Contains(chatId);
         }
 
-        private void Initialize()
+        private async Task<AccessData> LoadDataAsync()
         {
-            var users = accessStorage.GetAllowedUsers().GetAwaiter().GetResult();
-            if (!string.IsNullOrWhiteSpace(users))
-            {
-                foreach (var id in users.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-                {
-                    allowed.Add(id.Trim());
-                }
-            }
+            var usersRaw = await _accessStorage.GetAllowedUsers().ConfigureAwait(false);
+            var premiumRaw = await _accessStorage.GetPremiumUsers().ConfigureAwait(false);
 
-            var premiumUsers = accessStorage.GetPremiumUsers().GetAwaiter().GetResult();
-            if (!string.IsNullOrWhiteSpace(premiumUsers))
+            var allowed = ParseIds(usersRaw);
+            var premium = ParseIds(premiumRaw);
+
+            return new AccessData(allowed.ToFrozenSet(), premium.ToFrozenSet());
+        }
+
+        private static IEnumerable<string> ParseIds(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) yield break;
+
+            foreach (var line in raw.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
-                foreach (var id in premiumUsers.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-                {
-                    premium.Add(id.Trim());
-                }
+                yield return line.Trim();
             }
         }
+
+        private sealed record AccessData(FrozenSet<string> AllowedUsers, FrozenSet<string> PremiumUsers);
     }
 }

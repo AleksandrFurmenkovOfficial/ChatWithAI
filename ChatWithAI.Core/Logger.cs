@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace ChatWithAI.Core
 {
@@ -11,14 +11,14 @@ namespace ChatWithAI.Core
             _logger = logger;
         }
 
-        public void LogDebugMessage(string message)
-        {
-            Log(LogLevel.Debug, message);
-        }
-
         public void LogInfoMessage(string message)
         {
             Log(LogLevel.Information, message);
+        }
+
+        public void LogDebugMessage(string message)
+        {
+            Log(LogLevel.Debug, message);
         }
 
         public void LogErrorMessage(string message)

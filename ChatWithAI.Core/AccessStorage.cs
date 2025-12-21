@@ -1,23 +1,39 @@
-﻿namespace ChatWithAI.Core
+namespace ChatWithAI.Core
 {
     public class AccessStorage(string path) : IAccessStorage
     {
-        public Task<string> GetAllowedUsers(CancellationToken cancellationToken = default)
+        public async Task<string> GetAllowedUsers(CancellationToken cancellationToken = default)
         {
-            var fullPath = Path.Combine(path, $"ids.txt");
-            if (File.Exists(fullPath))
-                return File.ReadAllTextAsync(fullPath, cancellationToken);
-
-            return Task.FromResult("");
+            var fullPath = Path.Combine(path, "ids.txt");
+            try
+            {
+                return await File.ReadAllTextAsync(fullPath, cancellationToken);
+            }
+            catch (FileNotFoundException)
+            {
+                return string.Empty;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return string.Empty;
+            }
         }
 
-        public Task<string> GetPremiumUsers(CancellationToken cancellationToken = default)
+        public async Task<string> GetPremiumUsers(CancellationToken cancellationToken = default)
         {
-            var fullPath = Path.Combine(path, $"premium_ids.txt");
-            if (File.Exists(fullPath))
-                return File.ReadAllTextAsync(fullPath, cancellationToken);
-
-            return Task.FromResult("");
+            var fullPath = Path.Combine(path, "premium_ids.txt");
+            try
+            {
+                return await File.ReadAllTextAsync(fullPath, cancellationToken);
+            }
+            catch (FileNotFoundException)
+            {
+                return string.Empty;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return string.Empty;
+            }
         }
     }
 }

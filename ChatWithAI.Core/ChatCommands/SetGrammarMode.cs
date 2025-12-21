@@ -1,19 +1,28 @@
-﻿namespace ChatWithAI.Core.ChatCommands
+using ChatWithAI.Contracts.Model;
+
+namespace ChatWithAI.Core.ChatCommands
 {
-    public sealed class SetGrammarMode(IChatModeLoader modeLoader) : IChatCommand
+    public sealed class SetGrammarMode(IChatModeLoader modeLoader, IMessenger messenger) : IChatCommand
     {
-        public string Name => "grammar";
+        public static string StaticName => "grammar";
+        public string Name => StaticName;
         bool IChatCommand.IsAdminOnlyCommand => false;
 
-        readonly IChatModeLoader modeLoader = modeLoader;
+        private readonly IChatModeLoader modeLoader = modeLoader;
 
-        public async Task Execute(IChat chat, ChatMessage message, CancellationToken cancellationToken = default)
+        public async Task Execute(IChat chat, ChatMessageModel message, CancellationToken cancellationToken = default)
         {
             if (cancellationToken.IsCancellationRequested) return;
 
             var mode = await modeLoader.GetChatMode(Name, cancellationToken).ConfigureAwait(false);
-            chat.SetMode(mode);
-            await chat.SendSystemMessage(Strings.GrammarModeNow, cancellationToken).ConfigureAwait(false);
+            mode.UseFunctions = false;
+            mode.UseImage = false;
+            mode.UseFlash = true;
+
+            await chat.SetMode(mode).ConfigureAwait(false);
+            await chat.Reset().ConfigureAwait(false);
+
+            await messenger.SendTextMessage(chat.Id, new MessengerMessageDTO { TextContent = Strings.GrammarModeNow }).ConfigureAwait(false);
         }
     }
 }

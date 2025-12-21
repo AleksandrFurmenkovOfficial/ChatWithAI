@@ -1,4 +1,4 @@
-﻿using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Formats.Webp;
 
 namespace ChatWithAI.Core
@@ -19,25 +19,6 @@ namespace ChatWithAI.Core
             }
         }
 
-        public static async Task<string> EncodeImageToWebpBase64(Uri imageUrl,
-            CancellationToken cancellationToken = default)
-        {
-            using (var httpClient = new HttpClient())
-            {
-                var imageBytes = await httpClient.GetByteArrayAsync(imageUrl, cancellationToken).ConfigureAwait(false);
-                return Convert.ToBase64String(ConvertImageBytesToWebp(imageBytes));
-            }
-        }
-
-        public static async Task<Stream> GetStreamFromUrlAsync(Uri url, CancellationToken cancellationToken = default)
-        {
-            using (var httpClient = new HttpClient())
-            {
-                var bytes = await httpClient.GetByteArrayAsync(url, cancellationToken).ConfigureAwait(false);
-                return new MemoryStream(bytes);
-            }
-        }
-
         public static ImageEncoder DefaultEncoder()
         {
             return new WebpEncoder() { Quality = 100, FileFormat = WebpFileFormatType.Lossless };
@@ -53,30 +34,6 @@ namespace ChatWithAI.Core
         {
             byte[] imageBytes = ConvertBase64ToImageBytes(base64String);
             return new MemoryStream(imageBytes);
-        }
-
-        public static string ConvertBase64ToBase64Webp(string base64)
-        {
-            using (var inputStream = ConvertBase64ToMemoryStream(base64))
-            using (var outputStream = new MemoryStream())
-            {
-                using (var image = SixLabors.ImageSharp.Image.Load(inputStream))
-                {
-                    image.Save(outputStream, DefaultEncoder());
-                }
-
-                return Convert.ToBase64String(outputStream.ToArray());
-            }
-        }
-
-        public static async Task<string> EncodeAudioToWebpBase64(Uri audioUrl,
-            CancellationToken cancellationToken = default)
-        {
-            using (var httpClient = new HttpClient())
-            {
-                var audioBytes = await httpClient.GetByteArrayAsync(audioUrl, cancellationToken).ConfigureAwait(false);
-                return Convert.ToBase64String(audioBytes);
-            }
         }
 
         public static int MessageIdToInt(MessageId s)

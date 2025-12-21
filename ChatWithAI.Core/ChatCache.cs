@@ -1,29 +1,36 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 
 namespace ChatWithAI.Core
 {
+    /// <summary>
+    /// Cache with "expire after write" semantics:
+    /// - Set(key, value, ttl) stores value and computes ExpiresAt = now + ttl
+    /// - When expired, item is NOT removed; it is atomically marked as expired and ExpirationObservable emits an event once.
+    /// - Cache user decides whether to refresh (Set) or remove (Remove).
+    /// </summary>
     public class ChatCache : IDisposable
     {
         private readonly ConcurrentDictionary<string, CacheItem> _cacheItems = new();
         private readonly Timer _expirationTimer;
         private readonly TimeSpan _checkInterval;
         private readonly ILogger _logger;
-        private int _isDisposed;
-        private readonly Subject<ExpirationEventArgs> _expirationSubject;
+
+        private readonly ISubject<ExpirationEventArgs> _expirationSubject;
+
+        private int _isDisposed;  // 0 alive, 1 disposed
+        private int _isChecking;  // timer reentrancy guard
 
         public IObservable<ExpirationEventArgs> ExpirationObservable { get; }
 
-        public ChatCache(
-            TimeSpan checkInterval,
-            ILogger logger)
+        public ChatCache(TimeSpan checkInterval, ILogger logger)
         {
             _checkInterval = checkInterval;
             _logger = logger;
 
-            _expirationSubject = new Subject<ExpirationEventArgs>();
-
+            // Thread-safe wrapper over Subject to avoid concurrent OnNext/OnCompleted issues.
+            _expirationSubject = Subject.Synchronize(new Subject<ExpirationEventArgs>());
             ExpirationObservable = _expirationSubject.AsObservable();
 
             _expirationTimer = new Timer(CheckExpirations, null, _checkInterval, _checkInterval);
@@ -37,145 +44,55 @@ namespace ChatWithAI.Core
 
             EnsureNotDisposed();
 
-            var item = new CacheItem
-            {
-                Key = key,
-                Value = value,
-                ValueType = typeof(T).AssemblyQualifiedName ?? typeof(T).FullName ?? typeof(T).Name,
-                CreatedAt = DateTime.UtcNow,
-                ExpiresAt = expiration == TimeSpan.MaxValue ? DateTime.MaxValue : DateTime.UtcNow.Add(expiration),
-                IsExpired = 0
-            };
+            var now = DateTime.UtcNow;
+            var expiresAt = ComputeExpiresAt(now, expiration);
 
-            _cacheItems[key] = item;
+            var item = new CacheItem(value, expiresAt, isExpired: false);
 
-            // Log($"Set '{key}' with expiration at {item.ExpiresAt:yyyy-MM-dd HH:mm:ss.fff} UTC");
+            // Atomic replace per key (there is always exactly one value per key).
+            _cacheItems.AddOrUpdate(key, item, (_, __) => item);
         }
 
         public T? Get<T>(string key)
         {
             if (!TryGetInternal(key, out var item) || item == null)
-            {
                 return default;
-            }
 
-            try
-            {
-                if (item.Value is T typedValue)
-                {
-                    return typedValue;
-                }
+            if (item.Value is T typed)
+                return typed;
 
-                Type? storedType = null;
-                try
-                {
-                    storedType = Type.GetType(item.ValueType);
-                }
-                catch (Exception ex)
-                {
-                    Log($"Error resolving type '{item.ValueType}' for key '{key}': {ex.Message}");
-                    return default;
-                }
-
-                if (storedType == null)
-                {
-                    string message = "Could not resolve type '" + item.ValueType + "' for key '" + key + "'.";
-                    Log(message);
-                    return default;
-                }
-
-                if (!typeof(T).IsAssignableFrom(storedType))
-                {
-                    string requestedTypeName = typeof(T).Name;
-                    string storedTypeName = storedType.Name;
-                    string message = "Type mismatch for key '" + key + "'. Requested " + requestedTypeName + ", Stored " + storedTypeName + ".";
-                    Log(message);
-                    return default;
-                }
-
-                return (T)item.Value!;
-            }
-            catch (Exception ex)
-            {
-                Log($"Error getting value for key '{key}': {ex.Message}. Removing item.");
-                Remove(key);
-                return default;
-            }
+            Log($"Type mismatch for key '{key}'. Requested {typeof(T).Name}, stored {(item.Value?.GetType().Name ?? "null")}.");
+            return default;
         }
 
         public bool TryGet<T>(string key, out T? value)
         {
             value = default;
+
             if (!TryGetInternal(key, out var item) || item == null)
-            {
                 return false;
-            }
 
-            try
+            if (item.Value is T typed)
             {
-                if (item.Value is T typedValue)
-                {
-                    value = typedValue;
-                    return true;
-                }
-
-                Type? storedType = null;
-                try
-                {
-                    storedType = Type.GetType(item.ValueType);
-                }
-                catch (Exception ex)
-                {
-                    Log($"Error resolving type '{item.ValueType}' for key '{key}': {ex.Message}");
-                    return false;
-                }
-
-                if (storedType == null)
-                {
-                    string message = "Could not resolve type '" + item.ValueType + "' for key '" + key + "'.";
-                    Log(message);
-                    return false;
-                }
-
-                if (!typeof(T).IsAssignableFrom(storedType))
-                {
-                    string requestedTypeName = typeof(T).Name;
-                    string storedTypeName = storedType.Name;
-                    string message = "Type mismatch for key '" + key + "'. Requested " + requestedTypeName + ", Stored " + storedTypeName + ".";
-                    Log(message);
-                    return false;
-                }
-
-                value = (T)item.Value!;
+                value = typed;
                 return true;
             }
-            catch (Exception ex)
-            {
-                Log($"Error getting value for key '{key}': {ex.Message}. Removing item.");
-                Remove(key);
-                return false;
-            }
+
+            Log($"Type mismatch for key '{key}'. Requested {typeof(T).Name}, stored {(item.Value?.GetType().Name ?? "null")}.");
+            return false;
         }
 
         private bool TryGetInternal(string key, out CacheItem? item)
         {
             item = null;
+
             if (string.IsNullOrEmpty(key))
                 return false;
 
-            try
-            {
-                EnsureNotDisposed();
-            }
-            catch
-            {
-                return false;
-            }
+            try { EnsureNotDisposed(); }
+            catch { return false; }
 
-            if (!_cacheItems.TryGetValue(key, out item) || item == null)
-                return false;
-
-            return true;
+            return _cacheItems.TryGetValue(key, out item) && item != null;
         }
 
         public bool Contains(string key)
@@ -188,23 +105,10 @@ namespace ChatWithAI.Core
             if (string.IsNullOrEmpty(key))
                 return false;
 
-            try
-            {
-                EnsureNotDisposed();
-            }
-            catch
-            {
-                return false;
-            }
+            try { EnsureNotDisposed(); }
+            catch { return false; }
 
-            bool itemRemoved = _cacheItems.TryRemove(key, out _);
-
-            if (itemRemoved)
-            {
-                // Log($"Manually removed item '{key}'");
-                return true;
-            }
-            return false;
+            return _cacheItems.TryRemove(key, out _);
         }
 
         public void Clear()
@@ -229,84 +133,86 @@ namespace ChatWithAI.Core
             get
             {
                 EnsureNotDisposed();
+                // Snapshot for predictable enumeration semantics.
                 return new List<string>(_cacheItems.Keys);
             }
         }
 
-        private void CheckExpirations(object? state)
+        private void CheckExpirations(object? _)
         {
-            if (Interlocked.CompareExchange(ref _isDisposed, 0, 0) != 0) return;
+            if (Volatile.Read(ref _isDisposed) != 0)
+                return;
+
+            // Prevent overlapping callbacks.
+            if (Interlocked.Exchange(ref _isChecking, 1) != 0)
+                return;
 
             try
             {
                 var now = DateTime.UtcNow;
-                var expiredItems = new List<(string Key, CacheItem Item)>();
 
                 foreach (var kvp in _cacheItems)
                 {
-                    if (kvp.Value.ExpiresAt <= now && kvp.Value.IsExpired == 0)
-                    {
-                        if (Interlocked.CompareExchange(ref kvp.Value.IsExpired, 1, 0) == 0)
-                        {
-                            expiredItems.Add((kvp.Key, kvp.Value));
-                        }
-                    }
-                }
+                    var key = kvp.Key;
+                    var snapshot = kvp.Value;
 
-                foreach (var (key, item) in expiredItems)
-                {
-                    NotifyItemExpiration(key, item);
+                    if (snapshot.IsExpired)
+                        continue;
+
+                    if (snapshot.ExpiresAt > now)
+                        continue;
+
+                    // Atomically mark expired ONLY if the dictionary still contains exactly this snapshot instance.
+                    var expired = snapshot.WithExpired();
+                    if (!_cacheItems.TryUpdate(key, expired, snapshot))
+                        continue;
+
+                    // Emit once per value instance. Cache item stays in dictionary (per requirements).
+                    try
+                    {
+                        if (Volatile.Read(ref _isDisposed) != 0)
+                            return;
+
+                        _expirationSubject.OnNext(new ExpirationEventArgs(key));
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Dispose can race with timer callback; ignore.
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"Error notifying expiration for '{key}': {ex.Message}");
+                    }
                 }
             }
             catch (Exception ex)
             {
                 Log($"Error in expiration check: {ex.Message}");
             }
+            finally
+            {
+                Interlocked.Exchange(ref _isChecking, 0);
+            }
         }
 
-        private void NotifyItemExpiration(string key, CacheItem item)
+        private static DateTime ComputeExpiresAt(DateTime nowUtc, TimeSpan expiration)
         {
-            if (Interlocked.CompareExchange(ref _isDisposed, 0, 0) != 0) return;
+            if (expiration == TimeSpan.MaxValue)
+                return DateTime.MaxValue;
 
-            try
-            {
-                Type? valueType = null;
-                try
-                {
-                    valueType = Type.GetType(item.ValueType);
-                }
-                catch (Exception ex)
-                {
-                    Log($"Error resolving type '{item.ValueType}' for key '{key}': {ex.Message}");
-                }
-
-                if (valueType != null && item.Value != null)
-                {
-                    Log($"Notifying about expired item '{key}'");
-                    var args = new ExpirationEventArgs(key);
-                    _expirationSubject.OnNext(args);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log($"Error preparing expiration notification: {ex.Message}");
-            }
+            try { return nowUtc.Add(expiration); }
+            catch { return DateTime.MaxValue; } // overflow-safe
         }
 
         private void Log(string message)
         {
-            try
-            {
-                _logger?.LogInfoMessage(message);
-            }
-            catch
-            {
-            }
+            try { _logger?.LogDebugMessage(message); }
+            catch { }
         }
 
         private void EnsureNotDisposed()
         {
-            ObjectDisposedException.ThrowIf(_isDisposed == 1, nameof(ChatCache));
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) == 1, nameof(ChatCache));
         }
 
         public void Dispose()
@@ -317,31 +223,42 @@ namespace ChatWithAI.Core
 
         protected virtual void Dispose(bool disposing)
         {
-            if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
+            if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
+                return;
 
-            if (disposing)
+            if (!disposing)
+                return;
+
+            try
             {
-                try
-                {
-                    _expirationTimer?.Dispose();
+                // Stop future callbacks ASAP (doesn't wait for an already-running callback).
+                try { _expirationTimer?.Change(Timeout.Infinite, Timeout.Infinite); } catch { }
+                _expirationTimer?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Log($"Error disposing timer: {ex.Message}");
+            }
 
-                    _expirationSubject.OnCompleted();
-                    _expirationSubject.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    Log($"Error disposing timer or subject: {ex.Message}");
-                }
+            try
+            {
+                _expirationSubject.OnCompleted();
+                if (_expirationSubject is IDisposable disposableSubject)
+                    disposableSubject.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Log($"Error disposing subject: {ex.Message}");
+            }
 
-                try
-                {
-                    _cacheItems.Clear();
-                    Log("Cache disposed");
-                }
-                catch (Exception ex)
-                {
-                    Log($"Error clearing collections during dispose: {ex.Message}");
-                }
+            try
+            {
+                _cacheItems.Clear();
+                Log("Cache disposed");
+            }
+            catch (Exception ex)
+            {
+                Log($"Error clearing cache during dispose: {ex.Message}");
             }
         }
 
@@ -352,12 +269,21 @@ namespace ChatWithAI.Core
 
         private sealed class CacheItem
         {
-            public string Key { get; set; } = string.Empty;
-            public object? Value { get; set; }
-            public string ValueType { get; set; } = string.Empty;
-            public DateTime CreatedAt { get; set; }
-            public DateTime ExpiresAt { get; set; }
-            public int IsExpired;
+            public CacheItem(object? value, DateTime expiresAt, bool isExpired)
+            {
+                Value = value;
+                ExpiresAt = expiresAt;
+                IsExpired = isExpired;
+            }
+
+            public object? Value { get; }
+            public DateTime ExpiresAt { get; }
+            public bool IsExpired { get; }
+
+            public CacheItem WithExpired()
+            {
+                return IsExpired ? this : new CacheItem(Value, ExpiresAt, isExpired: true);
+            }
         }
     }
 

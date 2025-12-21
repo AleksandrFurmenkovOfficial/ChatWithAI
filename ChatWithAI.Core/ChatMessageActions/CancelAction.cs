@@ -1,4 +1,4 @@
-﻿namespace ChatWithAI.Core.ChatMessageActions
+namespace ChatWithAI.Core.ChatMessageActions
 {
     public sealed class CancelAction : IChatMessageAction
     {
@@ -8,7 +8,7 @@
 
         public Task Run(IChat chat, CancellationToken cancellationToken = default)
         {
-            return chat.RemoveResponse(default);
+            return Task.CompletedTask;
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using ChatWithAI.Contracts;
+using ChatWithAI.Contracts;
 using Microsoft.Extensions.Hosting;
 
 namespace ChatWithAI

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -20,9 +20,9 @@ namespace ChatWithAI.Contracts
 
     public interface IAiFunction
     {
-        public string GetName();
-        public string GetDescription();
-        public List<Parameter> GetParameters();
-        public Task<AiFunctionResult> Execute(IAiAgent api, Dictionary<string, string> parameters, string userId, CancellationToken cancellationToken = default);
+        string GetName();
+        string GetDescription();
+        List<Parameter> GetParameters();
+        Task<AiFunctionResult> Execute(IAiAgent api, Dictionary<string, string> parameters, string userId, CancellationToken cancellationToken = default);
     }
 }

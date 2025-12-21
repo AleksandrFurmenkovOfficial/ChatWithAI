@@ -1,4 +1,4 @@
-﻿namespace ChatWithAI.Core.AiFunctions
+namespace ChatWithAI.Core.AiFunctions
 {
     public sealed class GetImageByDescription : IAiFunction
     {
@@ -9,8 +9,7 @@
 
         public string GetDescription()
         {
-            return "This function allows YOU to picture/to draw AN IMAGE by a text description (ONLY ENGLISH LANGUAGE IS SUPPORTED; MAX DESCRIPTION LEN IS 500 chars!!).\n" +
-                   "Your rating for the function: 8 out of 10.";
+            return "This function allows YOU to picture/to draw a new IMAGE by a text description (ONLY ENGLISH LANGUAGE IS SUPPORTED; MAX DESCRIPTION LEN IS 500 chars!!).";
         }
 
         public List<Parameter> GetParameters()
@@ -64,13 +63,14 @@
                     "Please report this issue and inquire if the user would like to try again.");
 
             string url = image.ImageUrl == null ? "absent, only base64 string" : image.ImageUrl.AbsolutePath;
+            var imageBase64 = await image.GetImageBase64Async(cancellationToken).ConfigureAwait(false);
             return new AiFunctionResult(
                 $"The image has been successfully created. " +
                 $"The user is currently viewing it. " +
                 $"Now, you should briefly describe to the user what has been created.\n" +
                 $"Url to the image: {url}",
                 image.ImageUrl,
-                image.ImageInBase64);
+                imageBase64);
         }
     }
 }

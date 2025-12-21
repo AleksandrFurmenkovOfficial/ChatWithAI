@@ -1,11 +1,12 @@
-﻿using System.Threading;
+using ChatWithAI.Contracts.Model;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ChatWithAI.Contracts
 {
     public interface IChatMessageConverter
     {
-        public Task<ChatMessage> ConvertToChatMessage(
+        Task<ChatMessageModel> ConvertToChatMessage(
             object rawMessage,
             CancellationToken cancellationToken = default);
     }

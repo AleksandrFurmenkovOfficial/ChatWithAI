@@ -1,36 +1,53 @@
-﻿using File = System.IO.File;
+using System.Text;
 
 namespace ChatWithAI.Core
 {
-    public class MemoryStorage(string folderPath) : IMemoryStorage
+    public class MemoryStorage : IMemoryStorage
     {
-        private string GetPath(string mode, string chatId) => Path.Combine(folderPath, $"{mode}_{chatId}.txt");
+        private readonly string _folderPath;
 
-        public Task AddLineContent(string mode, string chatId, string line, CancellationToken cancellationToken = default)
+        public MemoryStorage(string folderPath)
         {
-            if (!Directory.Exists(folderPath))
+            if (string.IsNullOrWhiteSpace(folderPath))
+                throw new ArgumentException("Path cannot be empty", nameof(folderPath));
+
+            _folderPath = folderPath;
+
+            Directory.CreateDirectory(_folderPath);
+        }
+
+        private string GetPath(string mode, string chatId)
+        {
+            var safeMode = Path.GetFileName(mode);
+            var safeChatId = Path.GetFileName(chatId);
+            return Path.Combine(_folderPath, $"{safeMode}_{safeChatId}.txt");
+        }
+
+        public async Task AddLineContent(string chatId, string mode, string line, CancellationToken cancellationToken = default)
+        {
+            var fullPath = GetPath(mode, chatId);
+            await File.AppendAllTextAsync(fullPath, line + Environment.NewLine, Encoding.UTF8, cancellationToken);
+        }
+
+        public async Task<string> GetContent(string chatId, string mode, CancellationToken cancellationToken = default)
+        {
+            var fullPath = GetPath(mode, chatId);
+            try
             {
-                _ = Directory.CreateDirectory(folderPath);
+                return await File.ReadAllTextAsync(fullPath, Encoding.UTF8, cancellationToken);
             }
-
-            var fullPath = GetPath(mode, chatId);
-            return File.AppendAllTextAsync(fullPath, line, cancellationToken);
+            catch (FileNotFoundException)
+            {
+                return string.Empty;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return string.Empty;
+            }
         }
 
-        public Task<string> GetContent(string mode, string chatId, CancellationToken cancellationToken = default)
+        public void Remove(string chatId, string mode, CancellationToken cancellationToken = default)
         {
-            var fullPath = GetPath(mode, chatId);
-            if (File.Exists(fullPath))
-                return File.ReadAllTextAsync(fullPath, cancellationToken);
-
-            return Task.FromResult("");
-        }
-
-        public void Remove(string mode, string chatId, CancellationToken cancellationToken = default)
-        {
-            if (!Directory.Exists(folderPath))
-                return;
-
             var fullPath = GetPath(mode, chatId);
             File.Delete(fullPath);
         }
