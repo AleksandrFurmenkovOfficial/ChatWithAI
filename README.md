@@ -15,7 +15,7 @@ This repository hosts the source code for a versatile Telegram bot powered by la
 *   **🌐 Internet Search:** Fetch answers to simple questions using web search capabilities.
 *   **📝 Note-Taking:** A personal diary feature to save notes, reminders, or text snippets between chat sessions.
 *   **⚙️ Multiple Modes:** Switch between different interaction modes like 'general', 'teacher', etc., to tailor the AI's responses.
-*   **✨ Choice of AI Provider:** Supports both Anthropic (Claude) and Google (Gemini) models.
+*   **✨ Google Gemini Powered:** Uses Google's Gemini models for AI responses.
 
 ## Getting Started
 
@@ -25,7 +25,7 @@ Follow these steps to get your own instance of the bot running.
 
 *   [.NET 8 SDK and Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0): Ensure you have the necessary .NET version installed on your system.
 *   **Telegram Bot Token:** Obtain a token from BotFather on Telegram.
-*   **AI Provider API Key:** Get an API key from either Anthropic or Google, depending on which AI you plan to use.
+*   **Google AI API Key:** Get an API key for Google's Gemini models.
 
 ### Installation
 
@@ -56,25 +56,18 @@ Configure the bot using environment variables before running it.
 **Core Settings:**
 
 *   `TELEGRAM_BOT_KEY`: **(Required)** Your Telegram bot token obtained from BotFather.
-*   `AI_PROVIDER`: **(Required)** Specify the AI provider to use. Set to either `"anthropic"` or `"google"`.
+*   `AI_PROVIDER`: **(Required)** Specify the AI provider. Set this to `"google"`.
 *   `TELEGRAM_ADMIN_USER_ID`: (Optional) Your Telegram User ID for administrative commands or privileges.
 *   `CHAT_CACHE_ALIVE_IN_MINUTES`: (Optional) Duration in minutes before a chat session context is reset for non-premium users. Defaults to `"5"`.
 
-**AI Provider Settings (Configure *one* set based on `AI_PROVIDER`):**
+**AI Provider Settings (Google Gemini):**
 
-*   **If `AI_PROVIDER` is `"anthropic"`:**
-    *   `ANTHROPIC_API_KEY`: **(Required)** Your Anthropic API key.
-    *   `ANTHROPIC_MODEL`: **(Required)** The model to use: `"claude-3-7-sonnet-20250219"`.
-    *   `ANTHROPIC_TEMPERATURE`: (Optional) Controls randomness (e.g., `"0.4"`). Default value might apply if unset.
-    *   `ANTHROPIC_MAX_TOKENS`: (Optional) Maximum tokens for the response (e.g., `"8192"`). Default value might apply if unset.
+*   `GOOGLE_API_KEY`: **(Required)** Your Google AI API key.
+*   `GOOGLE_MODEL`: **(Required)** The model to use. Choose from `"gemini-3.0-pro-preview"` or `"gemini-3.0-flash-preview"`.
+*   `GOOGLE_TEMPERATURE`: (Optional) Controls randomness (e.g., `"0.4"`). Default value might apply if unset.
+*   `GOOGLE_MAX_TOKENS`: (Optional) Maximum tokens for the response (e.g., `"65536"`). Default value might apply if unset.
 
-*   **If `AI_PROVIDER` is `"google"`:**
-    *   `GOOGLE_API_KEY`: **(Required)** Your Google AI API key.
-    *   `GOOGLE_MODEL`: **(Required)** The model to use. Choose from `"gemini-2.5-pro-preview-03-25"` or `"gemini-2.5-flash-preview-04-17"`.
-    *   `GOOGLE_TEMPERATURE`: (Optional) Controls randomness (e.g., `"0.4"`). Default value might apply if unset.
-    *   `GOOGLE_MAX_TOKENS`: (Optional) Maximum tokens for the response (e.g., `"65536"`). Default value might apply if unset.
-
-*Note: Ensure you set the required variables for the AI provider you selected.*
+*Note: Only the Google provider is supported; configure the variables above to enable it.*
 
 **Storage Paths:**
 
