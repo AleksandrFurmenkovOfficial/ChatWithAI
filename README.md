@@ -23,7 +23,7 @@ Follow these steps to get your own instance of the bot running.
 
 ### Prerequisites
 
-*   [.NET 8 SDK and Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0): Ensure you have the necessary .NET version installed on your system.
+*   [.NET 10 SDK and Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/10.0): Ensure you have the necessary .NET version installed on your system.
 *   **Telegram Bot Token:** Obtain a token from BotFather on Telegram.
 *   **Google AI API Key:** Get an API key for Google's Gemini models.
 
