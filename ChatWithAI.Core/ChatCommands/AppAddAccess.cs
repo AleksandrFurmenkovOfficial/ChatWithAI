@@ -16,6 +16,9 @@ namespace ChatWithAI.Core.ChatCommands
             }
 
             var id = message.GetTextContentItems()[0].Text!.Trim();
+            if (string.IsNullOrEmpty(id))
+                return Task.CompletedTask;
+
             _ = visitors.AddOrUpdate(id, _ =>
             {
                 var arg = new AppVisitor(true, Strings.Unknown, DateTime.UtcNow);
