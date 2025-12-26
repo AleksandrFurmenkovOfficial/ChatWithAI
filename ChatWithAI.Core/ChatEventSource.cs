@@ -337,24 +337,34 @@ namespace ChatWithAI.Core
             if (string.IsNullOrEmpty(textItem?.Text))
                 return null;
 
-            var text = textItem.Text;
+            string text = textItem.Text;
             foreach ((string commandName, IChatCommand command) in commands.Where(value =>
-                         text.Trim().Contains(value.Key, StringComparison.InvariantCultureIgnoreCase)))
+                        text.Trim().Contains(value.Key, StringComparison.InvariantCultureIgnoreCase)))
             {
                 if (command.IsAdminOnlyCommand && !adminChecker.IsAdmin(chatId))
                 {
                     return null;
                 }
 
-                textItem.Text = text[commandName.Length..];
-                return new EventChatCommand(
-                    chatId,
-                    message.Id.Value.ToString(),
-                    username,
-                    command,
-                    message,
-                    textItem.Text
-                );
+                var pos = text.IndexOf(commandName, StringComparison.InvariantCultureIgnoreCase);
+                if (pos >= 0)
+                {
+                    var contentStartIndex = pos + commandName.Length;
+                    string arguments = contentStartIndex < text.Length
+                        ? text[contentStartIndex..].Trim('\"').Trim()
+                        : string.Empty;
+
+                    textItem.Text = arguments;
+
+                    return new EventChatCommand(
+                        chatId,
+                        message.Id.Value.ToString(),
+                        username,
+                        command,
+                        message,
+                        textItem.Text
+                    );
+                }
             }
 
             return null;
