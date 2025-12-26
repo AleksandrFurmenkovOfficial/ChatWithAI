@@ -42,7 +42,7 @@ You can either build the bot from the source code or use pre-compiled binaries.
     ```bash
     dotnet build --configuration Release
     ```
-    The executable will typically be found in `bin/Release/net8.0/`.
+    The executable will typically be found in `bin/Release/net10.0/`.
 
 **Option 2: Use Pre-compiled Binaries**
 
