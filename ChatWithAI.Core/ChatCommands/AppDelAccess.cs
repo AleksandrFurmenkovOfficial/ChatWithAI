@@ -17,7 +17,7 @@ namespace ChatWithAI.Core.ChatCommands
 
             var id = message.GetTextContentItems()[0].Text!.Trim();
             if (string.IsNullOrEmpty(id))
-                return Task.FromCanceled(cancellationToken);
+                return Task.CompletedTask;
 
             _ = visitors.AddOrUpdate(id, _ =>
             {

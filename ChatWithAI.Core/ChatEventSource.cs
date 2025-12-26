@@ -351,7 +351,7 @@ namespace ChatWithAI.Core
                 {
                     var contentStartIndex = pos + commandName.Length;
                     string arguments = contentStartIndex < text.Length
-                        ? text[contentStartIndex..].Trim('\"').Trim()
+                        ? text[contentStartIndex..].Trim().Trim('\"')
                         : string.Empty;
 
                     textItem.Text = arguments;
