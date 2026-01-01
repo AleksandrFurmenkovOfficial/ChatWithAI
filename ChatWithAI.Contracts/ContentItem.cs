@@ -29,9 +29,19 @@ namespace ChatWithAI.Contracts
         private Func<Uri, CancellationToken, Task<string?>>? _loader;
         private Task<string?>? _loadingTask;
         private readonly object _lock = new();
+        private bool _isContentUnavailable;
 
         public override string MimeType { get; set; } = MediaTypeNames.Image.Webp;
         public Uri? ImageUrl { get; set; }
+
+        /// <summary>
+        /// Indicates that content loading failed (e.g., 404) and should not be retried.
+        /// </summary>
+        public bool IsContentUnavailable
+        {
+            get => _isContentUnavailable;
+            set => _isContentUnavailable = value;
+        }
 
         [Newtonsoft.Json.JsonIgnore]
         [System.Text.Json.Serialization.JsonIgnore]
@@ -47,7 +57,10 @@ namespace ChatWithAI.Contracts
             set
             {
                 _imageInBase64 = value;
-                _loadingTask = null;
+                if (value != null)
+                {
+                    _loadingTask = null;
+                }
             }
         }
 
@@ -58,7 +71,7 @@ namespace ChatWithAI.Contracts
                 return _imageInBase64;
             }
 
-            if (ImageUrl == null || _loader == null)
+            if (_isContentUnavailable || ImageUrl == null || _loader == null)
             {
                 return null;
             }
@@ -78,8 +91,16 @@ namespace ChatWithAI.Contracts
                 return null;
             }
 
-            _imageInBase64 = await _loader(ImageUrl, cancellationToken).ConfigureAwait(false);
-            return _imageInBase64;
+            var result = await _loader(ImageUrl, cancellationToken).ConfigureAwait(false);
+            if (result == null)
+            {
+                _isContentUnavailable = true;
+            }
+            else
+            {
+                _imageInBase64 = result;
+            }
+            return result;
         }
 
         public ImageContentItem CloneWithLoader(Func<Uri, CancellationToken, Task<string?>>? loader)
@@ -88,6 +109,7 @@ namespace ChatWithAI.Contracts
             {
                 ImageUrl = ImageUrl == null ? null : new Uri(ImageUrl.OriginalString),
                 ImageInBase64 = _imageInBase64,
+                IsContentUnavailable = _isContentUnavailable,
                 Loader = loader,
                 Signature = Signature
             };
@@ -100,9 +122,19 @@ namespace ChatWithAI.Contracts
         private Func<Uri, CancellationToken, Task<string?>>? _loader;
         private Task<string?>? _loadingTask;
         private readonly object _lock = new();
+        private bool _isContentUnavailable;
 
         public override string MimeType { get; set; } = "audio/mpeg";
         public Uri? AudioUrl { get; set; }
+
+        /// <summary>
+        /// Indicates that content loading failed (e.g., 404) and should not be retried.
+        /// </summary>
+        public bool IsContentUnavailable
+        {
+            get => _isContentUnavailable;
+            set => _isContentUnavailable = value;
+        }
 
         [Newtonsoft.Json.JsonIgnore]
         [System.Text.Json.Serialization.JsonIgnore]
@@ -118,7 +150,10 @@ namespace ChatWithAI.Contracts
             set
             {
                 _audioInBase64 = value;
-                _loadingTask = null;
+                if (value != null)
+                {
+                    _loadingTask = null;
+                }
             }
         }
 
@@ -129,7 +164,7 @@ namespace ChatWithAI.Contracts
                 return _audioInBase64;
             }
 
-            if (AudioUrl == null || _loader == null)
+            if (_isContentUnavailable || AudioUrl == null || _loader == null)
             {
                 return null;
             }
@@ -149,8 +184,16 @@ namespace ChatWithAI.Contracts
                 return null;
             }
 
-            _audioInBase64 = await _loader(AudioUrl, cancellationToken).ConfigureAwait(false);
-            return _audioInBase64;
+            var result = await _loader(AudioUrl, cancellationToken).ConfigureAwait(false);
+            if (result == null)
+            {
+                _isContentUnavailable = true;
+            }
+            else
+            {
+                _audioInBase64 = result;
+            }
+            return result;
         }
 
         public AudioContentItem CloneWithLoader(Func<Uri, CancellationToken, Task<string?>>? loader)
@@ -159,6 +202,7 @@ namespace ChatWithAI.Contracts
             {
                 AudioUrl = AudioUrl == null ? null : new Uri(AudioUrl.OriginalString),
                 AudioInBase64 = _audioInBase64,
+                IsContentUnavailable = _isContentUnavailable,
                 Loader = loader,
                 Signature = Signature
             };
@@ -171,9 +215,19 @@ namespace ChatWithAI.Contracts
         private Func<Uri, CancellationToken, Task<string?>>? _loader;
         private Task<string?>? _loadingTask;
         private readonly object _lock = new();
+        private bool _isContentUnavailable;
 
         public override string MimeType { get; set; } = MediaTypeNames.Application.Pdf;
         public Uri? DocumentUrl { get; set; }
+
+        /// <summary>
+        /// Indicates that content loading failed (e.g., 404) and should not be retried.
+        /// </summary>
+        public bool IsContentUnavailable
+        {
+            get => _isContentUnavailable;
+            set => _isContentUnavailable = value;
+        }
 
         [Newtonsoft.Json.JsonIgnore]
         [System.Text.Json.Serialization.JsonIgnore]
@@ -189,7 +243,10 @@ namespace ChatWithAI.Contracts
             set
             {
                 _documentInBase64 = value;
-                _loadingTask = null;
+                if (value != null)
+                {
+                    _loadingTask = null;
+                }
             }
         }
 
@@ -200,7 +257,7 @@ namespace ChatWithAI.Contracts
                 return _documentInBase64;
             }
 
-            if (DocumentUrl == null || _loader == null)
+            if (_isContentUnavailable || DocumentUrl == null || _loader == null)
             {
                 return null;
             }
@@ -220,8 +277,16 @@ namespace ChatWithAI.Contracts
                 return null;
             }
 
-            _documentInBase64 = await _loader(DocumentUrl, cancellationToken).ConfigureAwait(false);
-            return _documentInBase64;
+            var result = await _loader(DocumentUrl, cancellationToken).ConfigureAwait(false);
+            if (result == null)
+            {
+                _isContentUnavailable = true;
+            }
+            else
+            {
+                _documentInBase64 = result;
+            }
+            return result;
         }
 
         public DocumentContentItem CloneWithLoader(Func<Uri, CancellationToken, Task<string?>>? loader)
@@ -230,6 +295,7 @@ namespace ChatWithAI.Contracts
             {
                 DocumentUrl = DocumentUrl == null ? null : new Uri(DocumentUrl.OriginalString),
                 DocumentInBase64 = _documentInBase64,
+                IsContentUnavailable = _isContentUnavailable,
                 Loader = loader,
                 Signature = Signature,
                 MimeType = MimeType
@@ -243,9 +309,19 @@ namespace ChatWithAI.Contracts
         private Func<Uri, CancellationToken, Task<string?>>? _loader;
         private Task<string?>? _loadingTask;
         private readonly object _lock = new();
+        private bool _isContentUnavailable;
 
         public override string MimeType { get; set; } = "video/mp4";
         public Uri? VideoUrl { get; set; }
+
+        /// <summary>
+        /// Indicates that content loading failed (e.g., 404) and should not be retried.
+        /// </summary>
+        public bool IsContentUnavailable
+        {
+            get => _isContentUnavailable;
+            set => _isContentUnavailable = value;
+        }
 
         [Newtonsoft.Json.JsonIgnore]
         [System.Text.Json.Serialization.JsonIgnore]
@@ -261,7 +337,10 @@ namespace ChatWithAI.Contracts
             set
             {
                 _videoInBase64 = value;
-                _loadingTask = null;
+                if (value != null)
+                {
+                    _loadingTask = null;
+                }
             }
         }
 
@@ -272,7 +351,7 @@ namespace ChatWithAI.Contracts
                 return _videoInBase64;
             }
 
-            if (VideoUrl == null || _loader == null)
+            if (_isContentUnavailable || VideoUrl == null || _loader == null)
             {
                 return null;
             }
@@ -292,8 +371,16 @@ namespace ChatWithAI.Contracts
                 return null;
             }
 
-            _videoInBase64 = await _loader(VideoUrl, cancellationToken).ConfigureAwait(false);
-            return _videoInBase64;
+            var result = await _loader(VideoUrl, cancellationToken).ConfigureAwait(false);
+            if (result == null)
+            {
+                _isContentUnavailable = true;
+            }
+            else
+            {
+                _videoInBase64 = result;
+            }
+            return result;
         }
 
         public VideoContentItem CloneWithLoader(Func<Uri, CancellationToken, Task<string?>>? loader)
@@ -302,6 +389,7 @@ namespace ChatWithAI.Contracts
             {
                 VideoUrl = VideoUrl == null ? null : new Uri(VideoUrl.OriginalString),
                 VideoInBase64 = _videoInBase64,
+                IsContentUnavailable = _isContentUnavailable,
                 Loader = loader,
                 Signature = Signature,
                 MimeType = MimeType

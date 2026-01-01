@@ -4,6 +4,19 @@ using System.Threading.Tasks;
 namespace ChatWithAI.Contracts
 {
     /// <summary>
+    /// Result of a messenger edit operation.
+    /// </summary>
+    public enum MessengerEditResult
+    {
+        /// <summary>Operation completed successfully.</summary>
+        Success,
+        /// <summary>Message was deleted by user and cannot be edited.</summary>
+        MessageDeleted,
+        /// <summary>Message content was not modified (same content).</summary>
+        NotModified
+    }
+
+    /// <summary>
     /// Data transfer object for sending messages to messenger.
     /// Contains only the data needed by the messenger to send/display a message.
     /// </summary>
@@ -26,13 +39,13 @@ namespace ChatWithAI.Contracts
         Task<string> SendTextMessage(string chatId, MessengerMessageDTO message,
             IEnumerable<ActionId>? messageActionIds = null);
 
-        Task EditTextMessage(string chatId, MessageId messageId, string content,
+        Task<MessengerEditResult> EditTextMessage(string chatId, MessageId messageId, string content,
             IEnumerable<ActionId>? messageActionIds = null);
 
         Task<string> SendPhotoMessage(string chatId, MessengerMessageDTO message,
             IEnumerable<ActionId>? messageActionIds = null);
 
-        Task EditPhotoMessage(string chatId, MessageId messageId, string caption,
+        Task<MessengerEditResult> EditPhotoMessage(string chatId, MessageId messageId, string caption,
             IEnumerable<ActionId>? messageActionIds = null);
     }
 }

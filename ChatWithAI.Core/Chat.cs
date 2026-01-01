@@ -42,6 +42,7 @@ namespace ChatWithAI.Core
         {
             chatMode = mode;
             var old = aiAgent;
+            if (useExpiration && !mode.UseImage) mode.UseFlash = true; // tmp, force flash for non premium
             aiAgent = aiAgentFactory.CreateAiAgent(mode.AiName, mode.AiSettings, mode.UseFunctions, mode.UseImage, mode.UseFlash);
             if (old is IDisposable disposableOld) disposableOld.Dispose();
             return Task.CompletedTask;
@@ -388,15 +389,22 @@ namespace ChatWithAI.Core
 
         private async Task UpdateUIMessageInMessenger(UIMessageViewModel uiMessage, IEnumerable<ActionId>? newActions)
         {
-            if (!uiMessage.IsSent) return;
+            if (!uiMessage.IsSent || uiMessage.IsDeleted) return;
 
+            MessengerEditResult result;
             if (uiMessage.HasImage)
             {
-                await messenger.EditPhotoMessage(Id, uiMessage.MessengerMessageId, uiMessage.TextContent, newActions).ConfigureAwait(false);
+                result = await messenger.EditPhotoMessage(Id, uiMessage.MessengerMessageId, uiMessage.TextContent, newActions).ConfigureAwait(false);
             }
             else
             {
-                await messenger.EditTextMessage(Id, uiMessage.MessengerMessageId, uiMessage.TextContent, newActions).ConfigureAwait(false);
+                result = await messenger.EditTextMessage(Id, uiMessage.MessengerMessageId, uiMessage.TextContent, newActions).ConfigureAwait(false);
+            }
+
+            if (result == MessengerEditResult.MessageDeleted)
+            {
+                uiMessage.IsDeleted = true;
+                SaveState(GetOrCreateState());
             }
         }
 

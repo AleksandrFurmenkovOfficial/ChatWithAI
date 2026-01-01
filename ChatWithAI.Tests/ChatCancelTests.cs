@@ -202,14 +202,14 @@ namespace ChatWithAI.Tests
             public Task<string> SendTextMessage(string chatId, MessengerMessageDTO message, IEnumerable<ActionId>? messageActionIds = null)
                 => Task.FromResult(Interlocked.Increment(ref _nextMessageId).ToString(CultureInfo.InvariantCulture));
 
-            public Task EditTextMessage(string chatId, MessageId messageId, string content, IEnumerable<ActionId>? messageActionIds = null)
-                => Task.CompletedTask;
+            public Task<MessengerEditResult> EditTextMessage(string chatId, MessageId messageId, string content, IEnumerable<ActionId>? messageActionIds = null)
+                => Task.FromResult(MessengerEditResult.Success);
 
             public Task<string> SendPhotoMessage(string chatId, MessengerMessageDTO message, IEnumerable<ActionId>? messageActionIds = null)
                 => Task.FromResult(Interlocked.Increment(ref _nextMessageId).ToString(CultureInfo.InvariantCulture));
 
-            public Task EditPhotoMessage(string chatId, MessageId messageId, string caption, IEnumerable<ActionId>? messageActionIds = null)
-                => Task.CompletedTask;
+            public Task<MessengerEditResult> EditPhotoMessage(string chatId, MessageId messageId, string caption, IEnumerable<ActionId>? messageActionIds = null)
+                => Task.FromResult(MessengerEditResult.Success);
         }
 
         private class MockLogger : ILogger

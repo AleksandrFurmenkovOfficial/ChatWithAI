@@ -145,8 +145,11 @@ namespace ChatWithAI.Core
                 foreach (var ctrlC in batch.CtrlCEvents)
                 {
                     ct.ThrowIfCancellationRequested();
-                    await ProcessCtrlCAsync(ctrlC, ct).ConfigureAwait(false);
-                    await chat.DoResponseToLastMessage(ct).ConfigureAwait(false);
+                    var messageAdded = await ProcessCtrlCAsync(ctrlC, ct).ConfigureAwait(false);
+                    if (messageAdded)
+                    {
+                        await chat.DoResponseToLastMessage(ct).ConfigureAwait(false);
+                    }
                     return;
                 }
             }
@@ -158,8 +161,11 @@ namespace ChatWithAI.Core
                 foreach (var ctrlV in batch.CtrlVEvents)
                 {
                     ct.ThrowIfCancellationRequested();
-                    await ProcessCtrlVAsync(ctrlV, ct).ConfigureAwait(false);
-                    await chat.DoResponseToLastMessage(ct).ConfigureAwait(false);
+                    var messageAdded = await ProcessCtrlVAsync(ctrlV, ct).ConfigureAwait(false);
+                    if (messageAdded)
+                    {
+                        await chat.DoResponseToLastMessage(ct).ConfigureAwait(false);
+                    }
                     return;
                 }
             }
@@ -206,50 +212,68 @@ namespace ChatWithAI.Core
             await chat.AddMessages(chatMessages).ConfigureAwait(false);
         }
 
-        private async Task ProcessCtrlCAsync(EventChatCtrlCHotkey ctrlC, CancellationToken ct)
+        private async Task<bool> ProcessCtrlCAsync(EventChatCtrlCHotkey ctrlC, CancellationToken ct)
         {
             if (screenshotProvider == null)
             {
                 logger.LogDebugMessage($"[ChatBatchExecutor] CtrlC event received but screenshotProvider is null");
-                return;
+                return false;
             }
 
             var imageBytes = await screenshotProvider.CaptureScreenAsync(ct).ConfigureAwait(false);
+            if (imageBytes.Length == 0)
+            {
+                logger.LogDebugMessage($"[ChatBatchExecutor] CtrlC screenshot is empty");
+                return false;
+            }
             var imageBase64 = Convert.ToBase64String(Helpers.ConvertImageBytesToWebp(imageBytes));
 
-            if (!string.IsNullOrEmpty(imageBase64))
+            if (string.IsNullOrEmpty(imageBase64))
             {
-                await chat.AddMessages([
-                    new ChatMessageModel(
-                    [
-                        new ImageContentItem { ImageInBase64 = imageBase64 },
-                        new TextContentItem { Text = "Please find a bug in my solution." }
-                    ], MessageRole.eRoleUser)
-                ]).ConfigureAwait(false);
+                logger.LogDebugMessage($"[ChatBatchExecutor] CtrlC screenshot conversion produced empty payload");
+                return false;
             }
+
+            await chat.AddMessages([
+                new ChatMessageModel(
+                [
+                    new ImageContentItem { ImageInBase64 = imageBase64 },
+                    new TextContentItem { Text = "Please find a bug in my solution." }
+                ], MessageRole.eRoleUser)
+            ]).ConfigureAwait(false);
+            return true;
         }
 
-        private async Task ProcessCtrlVAsync(EventChatCtrlVHotkey ctrlV, CancellationToken ct)
+        private async Task<bool> ProcessCtrlVAsync(EventChatCtrlVHotkey ctrlV, CancellationToken ct)
         {
             if (screenshotProvider == null)
             {
                 logger.LogDebugMessage($"[ChatBatchExecutor] CtrlV event received but screenshotProvider is null");
-                return;
+                return false;
             }
 
             var imageBytes = await screenshotProvider.CaptureScreenAsync(ct).ConfigureAwait(false);
+            if (imageBytes.Length == 0)
+            {
+                logger.LogDebugMessage($"[ChatBatchExecutor] CtrlV screenshot is empty");
+                return false;
+            }
             var imageBase64 = Convert.ToBase64String(Helpers.ConvertImageBytesToWebp(imageBytes));
 
-            if (!string.IsNullOrEmpty(imageBase64))
+            if (string.IsNullOrEmpty(imageBase64))
             {
-                await chat.AddMessages([
-                    new ChatMessageModel(
-                    [
-                        new ImageContentItem { ImageInBase64 = imageBase64 },
-                        new TextContentItem { Text = "Please write a chain of thoughts on how I should think to solve the coding problem." }
-                    ], MessageRole.eRoleUser)
-                ]).ConfigureAwait(false);
+                logger.LogDebugMessage($"[ChatBatchExecutor] CtrlV screenshot conversion produced empty payload");
+                return false;
             }
+
+            await chat.AddMessages([
+                new ChatMessageModel(
+                [
+                    new ImageContentItem { ImageInBase64 = imageBase64 },
+                    new TextContentItem { Text = "Please write a chain of thoughts on how I should think to solve the coding problem." }
+                ], MessageRole.eRoleUser)
+            ]).ConfigureAwait(false);
+            return true;
         }
 
         private static EventBatch ClassifyEvents(IEnumerable<IChatEvent> events)

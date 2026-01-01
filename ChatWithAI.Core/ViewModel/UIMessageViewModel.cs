@@ -40,6 +40,12 @@ namespace ChatWithAI.Core.ViewModel
         public bool IsSent { get; set; }
 
         /// <summary>
+        /// Whether this message was deleted by the user in messenger.
+        /// Deleted messages should not be edited or have content downloaded.
+        /// </summary>
+        public bool IsDeleted { get; set; }
+
+        /// <summary>
         /// Current buttons on this message.
         /// </summary>
         public List<ActionId>? ActiveButtons { get; set; }

@@ -20,6 +20,7 @@ namespace ChatWithAI.Core.StateMachine
             ChatCache cache,
             bool useExpiration)
         {
+            cache.Remove($"{chatId}_state");
             impl = new Chat(config, chatId, aiAgentFactory, messenger, logger, cache, useExpiration);
             impl.SetModeAsync(mode).Wait();
 

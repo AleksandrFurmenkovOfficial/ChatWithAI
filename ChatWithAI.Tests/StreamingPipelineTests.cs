@@ -838,7 +838,7 @@ public class StreamingPipelineTests : IDisposable
             return Task.FromResult(id);
         }
 
-        public Task EditTextMessage(string chatId, MessageId messageId, string content, IEnumerable<ActionId>? messageActionIds = null)
+        public Task<MessengerEditResult> EditTextMessage(string chatId, MessageId messageId, string content, IEnumerable<ActionId>? messageActionIds = null)
         {
             var id = messageId.Value ?? "";
             if (!_messageUpdates.ContainsKey(id))
@@ -852,14 +852,14 @@ public class StreamingPipelineTests : IDisposable
                 _orderedUpdates.Add((_updateSequence++, id, content, DateTime.UtcNow));
             }
 
-            return Task.CompletedTask;
+            return Task.FromResult(MessengerEditResult.Success);
         }
 
         public Task<string> SendPhotoMessage(string chatId, MessengerMessageDTO message, IEnumerable<ActionId>? messageActionIds = null)
             => Task.FromResult((_nextMessageId++).ToString());
 
-        public Task EditPhotoMessage(string chatId, MessageId messageId, string caption, IEnumerable<ActionId>? messageActionIds = null)
-            => Task.CompletedTask;
+        public Task<MessengerEditResult> EditPhotoMessage(string chatId, MessageId messageId, string caption, IEnumerable<ActionId>? messageActionIds = null)
+            => Task.FromResult(MessengerEditResult.Success);
     }
 
     private class MockLogger : ILogger
