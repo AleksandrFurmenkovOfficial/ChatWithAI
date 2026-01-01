@@ -70,7 +70,8 @@ namespace ChatWithAI.Core
                 }
             }
 
-            _logger.LogErrorMessage($"Failed to download {url} after {RetryDelaysMs.Length + 1} attempts: {lastException?.Message}");
+            // Log as info since expired Telegram file links are expected behavior
+            _logger.LogInfoMessage($"Failed to download {url} after {RetryDelaysMs.Length + 1} attempts: {lastException?.Message}");
             return null;
         }
     }

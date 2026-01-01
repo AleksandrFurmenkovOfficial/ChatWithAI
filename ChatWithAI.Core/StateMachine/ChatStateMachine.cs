@@ -25,7 +25,9 @@ namespace ChatWithAI.Core.StateMachine
             _chat = chat ?? throw new ArgumentNullException(nameof(chat));
             _logger = logger;
 
-            _machine = new StateMachine<ChatState, ChatTrigger>(ChatState.WaitingForFirstMessage);
+            var initialState = ChatState.WaitingForFirstMessage;
+
+            _machine = new StateMachine<ChatState, ChatTrigger>(initialState);
 
             _addMessagesTrigger = _machine.SetTriggerParameters<AddMessagesContext>(ChatTrigger.UserAddMessages);
             _setModeTrigger = _machine.SetTriggerParameters<SetModeContext>(ChatTrigger.UserSetMode);
@@ -38,7 +40,7 @@ namespace ChatWithAI.Core.StateMachine
 
             _machine.OnTransitionCompletedAsync(OnTransitionCompletedAsync);
 
-            _logger?.LogDebugMessage($"Chat {_chat.Id}: StateMachine initialized");
+            _logger?.LogDebugMessage($"Chat {_chat.Id}: StateMachine initialized in state {initialState}");
         }
 
         private void ConfigureTransitions()

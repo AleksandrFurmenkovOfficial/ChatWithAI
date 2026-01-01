@@ -67,32 +67,32 @@ namespace ChatWithAI.Core
 
         private async Task ProcessChatEventsAsync(string chatId, IEnumerable<IChatEvent> events, CancellationToken cancellationToken)
         {
-            // Extract username for access check
-            var firstEvent = events.FirstOrDefault();
-            var username = firstEvent switch
-            {
-                EventChatMessage m => m.Username,
-                EventChatCommand c => c.Username,
-                _ => "_"
-            };
-
-            // Check access
-            if (!await accessChecker.HasAccessAsync(chatId, username).ConfigureAwait(false))
-            {
-                await messenger.SendTextMessage(chatId, new MessengerMessageDTO { TextContent = Strings.NoAccess }).ConfigureAwait(false);
-                return;
-            }
-
-            // Get or create chat instance
-            var chat = await GetOrCreateChatAsync(chatId).ConfigureAwait(false);
-            if (chat == null) return;
-
-            // Get or create executor for this chat
-            var executor = chatExecutors.GetOrAdd(chatId, _ =>
-                new ChatBatchExecutor(chat, screenshotProvider, chatMessageActionProcessor, logger));
-
             try
             {
+                // Extract username for access check
+                var firstEvent = events.FirstOrDefault();
+                var username = firstEvent switch
+                {
+                    EventChatMessage m => m.Username,
+                    EventChatCommand c => c.Username,
+                    _ => "_"
+                };
+
+                // Check access
+                if (!await accessChecker.HasAccessAsync(chatId, username).ConfigureAwait(false))
+                {
+                    await messenger.SendTextMessage(chatId, new MessengerMessageDTO { TextContent = Strings.NoAccess }).ConfigureAwait(false);
+                    return;
+                }
+
+                // Get or create chat instance
+                var chat = await GetOrCreateChatAsync(chatId).ConfigureAwait(false);
+                if (chat == null) return;
+
+                // Get or create executor for this chat
+                var executor = chatExecutors.GetOrAdd(chatId, _ =>
+                    new ChatBatchExecutor(chat, screenshotProvider, chatMessageActionProcessor, logger));
+
                 // Execute batch using dedicated executor
                 await executor.ExecuteBatch(chatId, events, cancellationToken).ConfigureAwait(false);
             }
@@ -102,7 +102,8 @@ namespace ChatWithAI.Core
             }
             catch (Exception ex)
             {
-                logger.LogDebugMessage($"[ProcessChatEventsAsync] Error for chat {chatId}: {ex}");
+                logger.LogErrorMessage($"[ProcessChatEventsAsync] Error for chat {chatId}: {ex.Message}");
+                logger.LogException(ex);
             }
         }
 
