@@ -23,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.2" />
     <Using Include="ChatWithAI.Contracts" />
     <Using Include="ChatWithAI.Core" />
   </ItemGroup>
