@@ -117,127 +117,127 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="AttachedImage" xml:space="preserve">
-    <value>Attached image</value>
-  </data>
-  <data name="CommonModeNow" xml:space="preserve">
-    <value>Основной режим Виви включён.</value>
-  </data>
-  <data name="Continue" xml:space="preserve">
-    <value>&lt;system_message&gt;If you have something to continue, please continue.&lt;/system_message&gt;</value>
-  </data>
-  <data name="DefaultDescription" xml:space="preserve">
-    <value>{0} is a user's true friend.</value>
-  </data>
-  <data name="DefaultName" xml:space="preserve">
-    <value>AGI</value>
-  </data>
-  <data name="EnglishModeNow" xml:space="preserve">
-    <value>ИИ переведён в режим учителя английского языка.</value>
-  </data>
-  <data name="DocsModeNow" xml:space="preserve">
-    <value>ИИ переведён в режим поддержки видео и .pdf файлов.</value>
-  </data>
-  <data name="InitAnswerTemplate" xml:space="preserve">
-    <value>Думаю... ⌛</value>
-  </data>
-  <data name="NoAccess" xml:space="preserve">
-    <value>У вас нет доступа к ИИ-боту. Пожалуйста, обратитесь к администратору бота, чтобы запросить доступ.</value>
-  </data>
-  <data name="OnlyTextOrPhoto" xml:space="preserve">
-    <value>Only text or photo messages are allowed.</value>
-  </data>
-  <data name="Quote" xml:space="preserve">
-    <value>Quote</value>
-  </data>
-  <data name="RoleAssistant" xml:space="preserve">
-    <value>assistant</value>
-  </data>
-  <data name="RoleFunction" xml:space="preserve">
-    <value>function</value>
-  </data>
-  <data name="RoleSystem" xml:space="preserve">
-    <value>system</value>
-  </data>
-  <data name="RoleUser" xml:space="preserve">
-    <value>user</value>
-  </data>
-  <data name="SomethingGoesWrong" xml:space="preserve">
-    <value>Что-то пошло не так. 😓 Извините... Пожалуйста, попробуйте еще раз.</value>
-  </data>
-  <data name="StartWarning" xml:space="preserve">
-    <value>👋 Начат новый чат в /{0} режиме!
+	<data name="AttachedImage" xml:space="preserve">
+  <value>Attached image</value>
+</data>
+	<data name="CommonModeNow" xml:space="preserve">
+  <value>AI main mode is enabled.</value>
+</data>
+	<data name="Continue" xml:space="preserve">
+  <value>&lt;system_message&gt;If you have something to continue, please continue.&lt;/system_message&gt;</value>
+</data>
+	<data name="DefaultDescription" xml:space="preserve">
+  <value>{0} is a user's true friend.</value>
+</data>
+	<data name="DefaultName" xml:space="preserve">
+  <value>AI</value>
+</data>
+	<data name="EnglishModeNow" xml:space="preserve">
+  <value>AI has been switched to English teacher mode.</value>
+</data>
+	<data name="DocsModeNow" xml:space="preserve">
+  <value>AI has been switched to video and PDF support mode.</value>
+</data>
+	<data name="InitAnswerTemplate" xml:space="preserve">
+  <value>Thinking... ⌛</value>
+</data>
+	<data name="NoAccess" xml:space="preserve">
+  <value>You do not have access to the AI bot. Please contact the bot administrator to request access.</value>
+</data>
+	<data name="OnlyTextOrPhoto" xml:space="preserve">
+  <value>Only text or photo messages are allowed.</value>
+</data>
+	<data name="Quote" xml:space="preserve">
+  <value>Quote</value>
+</data>
+	<data name="RoleAssistant" xml:space="preserve">
+  <value>assistant</value>
+</data>
+	<data name="RoleFunction" xml:space="preserve">
+  <value>function</value>
+</data>
+	<data name="RoleSystem" xml:space="preserve">
+  <value>system</value>
+</data>
+	<data name="RoleUser" xml:space="preserve">
+  <value>user</value>
+</data>
+	<data name="SomethingGoesWrong" xml:space="preserve">
+  <value>Something went wrong. 😓 Sorry... Please try again.</value>
+</data>
+	<data name="StartWarning" xml:space="preserve">
+  <value>👋 A new chat has been started in /{0} mode!
 
-ИИ забыл предыдущую беседу, однако сохранил доступ к заметкам в своём Дневнике.
+AI has forgotten the previous conversation, but still has access to notes in its Diary.
 
-Памятка:{1}
-/help - вывести полный список доступных команд.
-/clear - очистить Дневник ИИ.
+Reminder:{1}
+/help - show the full list of available commands.
+/clear - clear the AI Diary.
 
-⚠️ Важно: ИИ может ошибаться, причём уверенно!
-Пожалуйста, перепроверяйте всю важную информацию. </value>
-  </data>
-  <data name="Unknown" xml:space="preserve">
-    <value>Unknown</value>
-  </data>
-  <data name="UserComment" xml:space="preserve">
-    <value>User comment</value>
-  </data>
-  <data name="WhatIsOnTheImage" xml:space="preserve">
-    <value>&lt;system_message&gt;The user has sent you a picture. What do you think?&lt;/system_message&gt;</value>
-  </data>
-  <data name="HasStarted" xml:space="preserve">
-    <value>@{0} has started!</value>
-  </data>
-  <data name="TrollModeNow" xml:space="preserve">
-    <value>😈</value>
-  </data>
-  <data name="ScientistModeNow" xml:space="preserve">
-    <value>ИИ переведён в режим учёного.</value>
-  </data>
-  <data name="TeacherModeNow" xml:space="preserve">
-    <value>ИИ переведён в режим учителя.</value>
-  </data>
-  <data name="TherapistModeNow" xml:space="preserve">
-    <value>ИИ переведён в режим терапевта.</value>
-  </data>
-  <data name="GrammarModeNow" xml:space="preserve">
-    <value>Режим проверки грамматики.</value>
-  </data>
-  <data name="BaseModeNow" xml:space="preserve">
-    <value>ИИ переведён в режим исходной модели без личности Виви.</value>
-  </data>
-  <data name="ErrorTryAgain" xml:space="preserve">
-    <value>Произошла ошибка, попробуйте нажать кнопку "Retry".
-Если не помогло после двух попыток - попробуйте начать новый чат, нажав на /start.</value>
-  </data>
-  <data name="DiaryCleared" xml:space="preserve">
-    <value>Дневник ИИ очищен.</value>
-  </data>
-  <data name="PhotoEditorModeNow" xml:space="preserve">
-    <value>ИИ переведён в режим создателя изображений и редактора фотографий.
-⚠️ В этом специализированном режиме не поддерживается приём голосовых сообщений.</value>
-  </data>
-  <data name="ReturnNote" xml:space="preserve">
-    <value>/common - чтобы вернуться в обычный режим Виви.</value>
-  </data>
-  <data name="Help" xml:space="preserve">
-    <value>📖 *Базовые команды*:
-/start — Перезапустить чат с нуля. ИИ больше не видит старых сообщений.
-/clear — Очистить Дневник Виви. Дневник — это место, где она может делать свои заметки во время общения.
-/help — Вывести список доступных команд.
+⚠️ Important: AI can make mistakes, and sometimes very confidently!
+Please double-check all important information.</value>
+</data>
+	<data name="Unknown" xml:space="preserve">
+  <value>Unknown</value>
+</data>
+	<data name="UserComment" xml:space="preserve">
+  <value>User comment</value>
+</data>
+	<data name="WhatIsOnTheImage" xml:space="preserve">
+  <value>&lt;system_message&gt;The user has sent you a picture. What do you think?&lt;/system_message&gt;</value>
+</data>
+	<data name="HasStarted" xml:space="preserve">
+  <value>@{0} has started!</value>
+</data>
+	<data name="TrollModeNow" xml:space="preserve">
+  <value>😈</value>
+</data>
+	<data name="ScientistModeNow" xml:space="preserve">
+  <value>AI has been switched to scientist mode.</value>
+</data>
+	<data name="TeacherModeNow" xml:space="preserve">
+  <value>AI has been switched to teacher mode.</value>
+</data>
+	<data name="TherapistModeNow" xml:space="preserve">
+  <value>AI has been switched to therapist mode.</value>
+</data>
+	<data name="GrammarModeNow" xml:space="preserve">
+  <value>Grammar check mode.</value>
+</data>
+	<data name="BaseModeNow" xml:space="preserve">
+  <value>AI has been switched to the base model mode without any persona.</value>
+</data>
+	<data name="ErrorTryAgain" xml:space="preserve">
+  <value>An error occurred. Please try pressing the "Retry" button.
+If it still does not help after two attempts, try starting a new chat by pressing /start.</value>
+</data>
+	<data name="DiaryCleared" xml:space="preserve">
+  <value>The AI Diary has been cleared.</value>
+</data>
+	<data name="PhotoEditorModeNow" xml:space="preserve">
+  <value>AI has been switched to image creation and photo editing mode.
+⚠️ Voice messages are not supported in this specialized mode.</value>
+</data>
+	<data name="ReturnNote" xml:space="preserve">
+  <value>/common - to return to the normal AI mode.</value>
+</data>
+	<data name="Help" xml:space="preserve">
+  <value>📖 *Basic commands*:
+/start — Restart the chat from scratch. AI will no longer see old messages.
+/clear — Clear the AI Diary. The Diary is a place where it can make notes during the conversation.
+/help — Show the list of available commands.
 
-📚 *Команды для смены режима чата*:
-/common — Включить основной режим работы Виви.
-/photoeditor — Включить режим художника и фоторедактора.
-/troll — Режим Виви-тролля, общающейся через подколы и юмор.
-/grammar — Режим проверки грамматики.
-/base — ИИ без личности Виви в исходном универсальном виде.</value>
-  </data>
-  <data name="DiaryEmpty" xml:space="preserve">
-    <value>Дневник ИИ пустой.</value>
-  </data>
-  <data name="DocumentNotSupported" xml:space="preserve">
-    <value>Документы и видео были скрыты так как не поддерживаются в сообщении.</value>
-  </data>
+📚 *Commands to switch chat mode*:
+/common — Enable the main AI mode.
+/photoeditor — Enable artist and photo editor mode.
+/troll — AI troll mode, communicating through teasing and humor.
+/grammar — Grammar check mode.
+/base — AI without any persona, in its original universal form.</value>
+</data>
+	<data name="DiaryEmpty" xml:space="preserve">
+  <value>The AI Diary is empty.</value>
+</data>
+	<data name="DocumentNotSupported" xml:space="preserve">
+  <value>Documents and videos were hidden because they are not supported in the message.</value>
+</data>
 </root>

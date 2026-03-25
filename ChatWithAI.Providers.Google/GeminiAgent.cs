@@ -441,7 +441,6 @@ namespace ChatWithAI.Providers.Google
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
                 if (string.IsNullOrEmpty(line))
                     continue;
 

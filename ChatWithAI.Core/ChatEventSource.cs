@@ -50,7 +50,6 @@ namespace ChatWithAI.Core
         private readonly ISubject<EventChatExpire> chatExpireSubject = Subject.Synchronize(new Subject<EventChatExpire>());
         public IObservable<EventChatExpire> ExpireChats => chatExpireSubject.AsObservable();
 
-        // Subjects для создания Rx streams из polling
         private readonly ISubject<CallbackQuery> callbackQuerySubject = Subject.Synchronize(new Subject<CallbackQuery>());
         private readonly ISubject<Message> messageSubject = Subject.Synchronize(new Subject<Message>());
 
@@ -146,8 +145,6 @@ namespace ChatWithAI.Core
 
         private async Task EnsureStartedAsync()
         {
-            if (disposed != 0) return;
-            await telegramBotSource.NewBotAsync().ConfigureAwait(false);
             if (disposed != 0) return;
 
             await lifecycleSync.WaitAsync().ConfigureAwait(false);
@@ -342,7 +339,6 @@ namespace ChatWithAI.Core
                 Limit = 100
             };
 
-            // Правильная сигнатура - используем делегаты вместо отдельных параметров
             bot.StartReceiving(
                 updateHandler: HandleUpdateAsync,
                 errorHandler: HandlePollingErrorAsync,
@@ -393,7 +389,7 @@ namespace ChatWithAI.Core
             return Task.CompletedTask;
         }
 
-        private Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
+        private void HandlePipelineError(Exception exception, string pipelineName)
         {
             if (exception is OperationCanceledException)
             {
@@ -462,7 +458,7 @@ namespace ChatWithAI.Core
             {
                 lifecycleSync.Release();
             }
-            logger?.LogDebugMessage($"[{pipelineName}] Unhandled error in Rx pipeline: {exception.Message}{Environment.NewLine}{exception.StackTrace}");
+            //logger?.LogDebugMessage($"[{pipelineName}] Unhandled error in Rx pipeline: {exception.Message}{Environment.NewLine}{exception.StackTrace}");
         }
 
         private EventChatCommand? GetChatCommand(string chatId, ChatMessageModel message, string username)
@@ -527,10 +523,8 @@ namespace ChatWithAI.Core
             (messageSubject as IDisposable)?.Dispose();
 
             callbackQuerySubject?.OnCompleted();
-            callbackQuerySubject?.Dispose();
 
             messageSubject?.OnCompleted();
-            messageSubject?.Dispose();
 
             chatActionSubject?.OnCompleted();
             (chatActionSubject as IDisposable)?.Dispose();
