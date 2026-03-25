@@ -1,4 +1,4 @@
-﻿using ChatWithAI.Contracts.Model;
+using ChatWithAI.Contracts.Model;
 using ChatWithAI.Core;
 using System.Text;
 using System.Text.RegularExpressions;

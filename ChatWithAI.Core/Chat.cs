@@ -1,4 +1,4 @@
-﻿using ChatWithAI.Contracts.Configs;
+using ChatWithAI.Contracts.Configs;
 using ChatWithAI.Contracts.Model;
 using ChatWithAI.Core.ChatCommands;
 using ChatWithAI.Core.ChatMessageActions;

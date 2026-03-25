@@ -1,4 +1,4 @@
-﻿namespace ChatWithAI.Core.AiFunctions
+namespace ChatWithAI.Core.AiFunctions
 {
     public sealed class GetImageByDescription : IAiFunction
     {

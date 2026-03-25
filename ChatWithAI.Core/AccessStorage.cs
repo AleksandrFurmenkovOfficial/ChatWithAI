@@ -1,4 +1,4 @@
-﻿namespace ChatWithAI.Core
+namespace ChatWithAI.Core
 {
     public class AccessStorage(string path) : IAccessStorage
     {

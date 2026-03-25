@@ -1,4 +1,4 @@
-﻿using ChatWithAI.Contracts.Model;
+using ChatWithAI.Contracts.Model;
 using System.Collections.Concurrent;
 
 namespace ChatWithAI.Core.ChatCommands

@@ -1,4 +1,4 @@
-﻿namespace ChatWithAI.Contracts
+namespace ChatWithAI.Contracts
 {
     public class EventChatCtrlVHotkey(string chatId) : IChatEvent
     {

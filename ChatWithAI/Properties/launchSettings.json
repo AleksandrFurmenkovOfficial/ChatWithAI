@@ -1,0 +1,33 @@
+{
+  "profiles": {
+    "ChatWithAI": {
+      "commandName": "Project",
+        "environmentVariables": {
+            "TELEGRAM_BOT_KEY": "",
+            "TELEGRAM_ADMIN_USER_ID": "",
+            "CHAT_CACHE_ALIVE_IN_MINUTES": "500000",
+            "AI_PROVIDER": "google",
+            "GOOGLE_API_KEY": "",
+            "GOOGLE_MODEL": "gemini-3-pro-preview",
+            "GOOGLE_API_ENDPOINT": "https://generativelanguage.googleapis.com/v1beta",
+            "GOOGLE_TEMPERATURE": "1",
+            "GOOGLE_MAX_TOKENS": "65536"
+        }
+    },
+    "WSL": {
+      "commandName": "WSL2",
+        "environmentVariables": {
+            "TELEGRAM_BOT_KEY": "",
+            "TELEGRAM_ADMIN_USER_ID": "",
+            "CHAT_CACHE_ALIVE_IN_MINUTES": "500000",
+            "AI_PROVIDER": "google",
+            "GOOGLE_API_KEY": "",
+            "GOOGLE_MODEL": "gemini-3-pro-preview",
+            "GOOGLE_API_ENDPOINT": "https://generativelanguage.googleapis.com/v1beta",
+            "GOOGLE_TEMPERATURE": "1",
+            "GOOGLE_MAX_TOKENS": "65536"
+        },
+      "distributionName": ""
+    }
+  }
+}

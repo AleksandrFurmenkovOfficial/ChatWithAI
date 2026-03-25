@@ -1,4 +1,4 @@
-﻿using ChatWithAI.Contracts.Configs;
+using ChatWithAI.Contracts.Configs;
 using ChatWithAI.Core.ChatCommands;
 using ChatWithAI.Core.ChatMessageActions;
 using ChatWithAI.Plugins.Windows.ScreenshotCapture;

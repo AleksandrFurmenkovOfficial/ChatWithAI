@@ -1,4 +1,4 @@
-﻿using ChatWithAI.Contracts.Configs;
+using ChatWithAI.Contracts.Configs;
 using ChatWithAI.Core.StateMachine;
 
 namespace ChatWithAI.Core

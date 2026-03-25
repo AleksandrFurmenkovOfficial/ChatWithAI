@@ -1,4 +1,4 @@
-﻿namespace ChatWithAI.Core
+namespace ChatWithAI.Core
 {
     public sealed class AdminChecker(string adminUserId) : IAdminChecker
     {

@@ -1,4 +1,4 @@
-﻿namespace ChatWithAI.Core.ChatMessageActions
+namespace ChatWithAI.Core.ChatMessageActions
 {
     public sealed class ContinueAction : IChatMessageAction
     {

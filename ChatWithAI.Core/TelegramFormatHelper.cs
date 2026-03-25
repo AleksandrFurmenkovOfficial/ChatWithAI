@@ -10,6 +10,7 @@ namespace ChatWithAI.Core
             .UseEmphasisExtras()
             .UseAutoLinks()
             .UsePipeTables()
+            .DisableHtml()
             .Build();
 
         private static readonly Regex MultipleNewLinesRegex = new(@"\n{3,}", RegexOptions.Compiled);

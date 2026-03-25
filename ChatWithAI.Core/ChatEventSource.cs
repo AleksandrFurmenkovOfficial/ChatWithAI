@@ -1,4 +1,4 @@
-﻿using ChatWithAI.Contracts.Model;
+using ChatWithAI.Contracts.Model;
 using System.Collections.Concurrent;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
@@ -146,6 +146,8 @@ namespace ChatWithAI.Core
 
         private async Task EnsureStartedAsync()
         {
+            if (disposed != 0) return;
+            await telegramBotSource.NewBotAsync().ConfigureAwait(false);
             if (disposed != 0) return;
 
             await lifecycleSync.WaitAsync().ConfigureAwait(false);
@@ -391,7 +393,7 @@ namespace ChatWithAI.Core
             return Task.CompletedTask;
         }
 
-        private void HandlePipelineError(Exception exception, string pipelineName)
+        private Task HandlePollingErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
         {
             if (exception is OperationCanceledException)
             {
@@ -460,6 +462,7 @@ namespace ChatWithAI.Core
             {
                 lifecycleSync.Release();
             }
+            logger?.LogDebugMessage($"[{pipelineName}] Unhandled error in Rx pipeline: {exception.Message}{Environment.NewLine}{exception.StackTrace}");
         }
 
         private EventChatCommand? GetChatCommand(string chatId, ChatMessageModel message, string username)
@@ -522,6 +525,12 @@ namespace ChatWithAI.Core
 
             messageSubject?.OnCompleted();
             (messageSubject as IDisposable)?.Dispose();
+
+            callbackQuerySubject?.OnCompleted();
+            callbackQuerySubject?.Dispose();
+
+            messageSubject?.OnCompleted();
+            messageSubject?.Dispose();
 
             chatActionSubject?.OnCompleted();
             (chatActionSubject as IDisposable)?.Dispose();

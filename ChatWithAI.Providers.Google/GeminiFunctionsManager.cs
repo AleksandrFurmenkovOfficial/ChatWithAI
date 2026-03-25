@@ -1,4 +1,4 @@
-﻿using ChatWithAI.Core.AiFunctions;
+using ChatWithAI.Core.AiFunctions;
 using Newtonsoft.Json;
 
 namespace ChatWithAI.Providers.Google

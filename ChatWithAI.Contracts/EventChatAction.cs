@@ -1,4 +1,4 @@
-﻿namespace ChatWithAI.Contracts
+namespace ChatWithAI.Contracts
 {
     public class EventChatAction(string chatId, string orderId, ActionParameters actionParameters) : IChatEvent
     {

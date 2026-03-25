@@ -1,4 +1,4 @@
-﻿using ChatWithAI.Contracts.Model;
+using ChatWithAI.Contracts.Model;
 
 namespace ChatWithAI.Core.ChatCommands
 {

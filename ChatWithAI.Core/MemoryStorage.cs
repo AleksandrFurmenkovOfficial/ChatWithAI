@@ -1,4 +1,4 @@
-﻿using System.Text; // Для Encoding
+using System.Text;
 
 namespace ChatWithAI.Core
 {
