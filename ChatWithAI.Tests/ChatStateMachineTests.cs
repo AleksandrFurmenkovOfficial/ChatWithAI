@@ -1,7 +1,6 @@
 using ChatWithAI.Contracts.Configs;
 using ChatWithAI.Core.StateMachine;
 using System.Globalization;
-using Xunit.Abstractions;
 using ChatMessage = ChatWithAI.Contracts.Model.ChatMessageModel;
 using ChatState = ChatWithAI.Core.StateMachine.ChatState;
 

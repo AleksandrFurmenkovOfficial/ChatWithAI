@@ -4,7 +4,6 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
-using Xunit.Abstractions;
 using ChatMessage = ChatWithAI.Contracts.Model.ChatMessageModel;
 
 namespace ChatWithAI.Tests;
@@ -213,7 +212,7 @@ public class StreamingPipelineTests : IDisposable
 
         string previousContent = "";
         int updateIndex = 0;
-        foreach (var update in orderedUpdates.Where(u => !string.IsNullOrEmpty(u.Content) && u.Content != "Думаю... ⌛"))
+        foreach (var update in orderedUpdates.Where(u => !string.IsNullOrEmpty(u.Content) && u.Content != "Thinking... ⌛"))
         {
             // Each update should START WITH the previous content (or be a new message segment)
             // For streaming within a single message, content should grow monotonically

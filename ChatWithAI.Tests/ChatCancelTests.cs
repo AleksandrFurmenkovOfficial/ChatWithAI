@@ -2,7 +2,6 @@ using ChatWithAI.Contracts.Configs;
 using ChatWithAI.Contracts.Model;
 using ChatWithAI.Core.StateMachine;
 using System.Globalization;
-using Xunit.Abstractions;
 using ChatState = ChatWithAI.Core.ChatState;
 
 namespace ChatWithAI.Tests

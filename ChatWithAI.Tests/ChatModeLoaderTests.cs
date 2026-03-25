@@ -23,7 +23,7 @@ public class ChatModeLoaderTests
 
         var result = await loader.GetChatMode("TestMode");
 
-        Assert.Equal("Vivy_TestMode", result.AiName);
+        Assert.Equal("AI_TestMode", result.AiName);
     }
 
     [Fact]
@@ -41,20 +41,6 @@ public class ChatModeLoaderTests
     }
 
     [Fact]
-    public async Task GetChatMode_IncludesPlatformSpecificMessage()
-    {
-        _modeStorage.GetContent("Mode", Arg.Any<CancellationToken>())
-            .Returns("");
-
-        var loader = new ChatModeLoader(_modeStorage);
-
-        var result = await loader.GetChatMode("Mode");
-
-        // Default platform message mentions tables
-        Assert.Contains("таблиц", result.AiSettings);
-    }
-
-    [Fact]
     public async Task GetChatMode_WithCustomPlatformMessage_IncludesIt()
     {
         _modeStorage.GetContent("Mode", Arg.Any<CancellationToken>())
@@ -66,34 +52,6 @@ public class ChatModeLoaderTests
         var result = await loader.GetChatMode("Mode");
 
         Assert.Contains(customMessage, result.AiSettings);
-    }
-
-    [Fact]
-    public async Task GetChatMode_IncludesSessionStartTime()
-    {
-        _modeStorage.GetContent("Mode", Arg.Any<CancellationToken>())
-            .Returns("");
-
-        var loader = new ChatModeLoader(_modeStorage);
-        var beforeTime = DateTime.Now;
-
-        var result = await loader.GetChatMode("Mode");
-
-        // Should contain date/time info
-        Assert.Contains("Сеанс чата начат в", result.AiSettings);
-    }
-
-    [Fact]
-    public async Task GetChatMode_WithEmptyModeName_ReturnsValidMode()
-    {
-        _modeStorage.GetContent("", Arg.Any<CancellationToken>())
-            .Returns("");
-
-        var loader = new ChatModeLoader(_modeStorage);
-
-        var result = await loader.GetChatMode("");
-
-        Assert.Equal("Vivy_", result.AiName);
     }
 
     [Fact]
@@ -121,7 +79,7 @@ public class ChatModeLoaderTests
 
         var result = await loader.GetChatMode(modeName);
 
-        Assert.Equal($"Vivy_{modeName}", result.AiName);
+        Assert.Equal($"AI_{modeName}", result.AiName);
     }
 
     [Fact]

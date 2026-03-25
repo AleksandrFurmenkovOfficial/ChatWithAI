@@ -1,7 +1,6 @@
 using ChatWithAI.Providers.Google;
 using System.Reflection;
 using System.Text;
-using Xunit.Abstractions;
 
 namespace ChatWithAI.Tests;
 

@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using Xunit.Abstractions;
 using ChatMessage = ChatWithAI.Contracts.Model.ChatMessageModel;
 
 namespace ChatWithAI.Tests;
