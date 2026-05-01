@@ -201,6 +201,12 @@ namespace ChatWithAI.Core
             // Phase 5: Messages (all added, one DoResponse at the end)
             if (batch.Messages.Count > 0)
             {
+                if (batch.Commands.Count > 0)
+                {
+                    logger.LogDebugMessage($"[ChatBatchExecutor] Skipping auto-response for {batch.Messages.Count} messages because {batch.Commands.Count} command(s) were processed in the same batch for chat {chat.Id}");
+                    return;
+                }
+
                 logger.LogDebugMessage($"[ChatBatchExecutor] Phase 5: Processing {batch.Messages.Count} messages for chat {chat.Id}");
                 ct.ThrowIfCancellationRequested();
                 await chat.DoResponseToLastMessage(ct).ConfigureAwait(false);

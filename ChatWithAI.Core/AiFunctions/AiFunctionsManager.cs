@@ -9,7 +9,7 @@ namespace ChatWithAI.Core.AiFunctions
             AddFunction(new ReadMyDiaryTool(memoryStorage));
             AddFunction(new SaveEntryToMyDiaryTool(memoryStorage));
             //AddFunction(new GetImageByDescription());
-            AddFunction(new GetInformationFromUrlTool(httpClientFactory));
+            //AddFunction(new GetInformationFromUrlTool(httpClientFactory));
         }
 
         public void AddFunction(IAiFunction function)

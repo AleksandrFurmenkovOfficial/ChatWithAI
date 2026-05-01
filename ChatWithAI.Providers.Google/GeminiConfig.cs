@@ -11,7 +11,7 @@ namespace ChatWithAI.Providers.Google
 
         [Required]
         [ConfigurationKeyName("GOOGLE_MODEL")]
-        public required string Model { get; set; } = "gemini-3-flash-preview";
+        public required string Model { get; set; } = "gemini-3.5-flash";
 
         [Required]
         [ConfigurationKeyName("GOOGLE_API_ENDPOINT")]
@@ -28,7 +28,7 @@ namespace ChatWithAI.Providers.Google
         public int MaxTokens { get; set; }
 
         [ConfigurationKeyName("GOOGLE_THINKING_LEVEL")]
-        public string ThinkingLevel { get; set; } = "low";
+        public string ThinkingLevel { get; set; } = "medium";
 
         [ConfigurationKeyName("GOOGLE_MEDIA_RESOLUTION")]
         public string MediaResolution { get; set; } = "MEDIA_RESOLUTION_MEDIUM";

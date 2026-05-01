@@ -15,9 +15,6 @@ namespace ChatWithAI.Core.ChatCommands
             if (cancellationToken.IsCancellationRequested) return;
 
             var mode = await modeLoader.GetChatMode(Name, cancellationToken).ConfigureAwait(false);
-            mode.UseFunctions = false;
-            mode.UseImage = false;
-            mode.UseFlash = true;
 
             await chat.SetMode(mode).ConfigureAwait(false);
             await chat.Reset().ConfigureAwait(false);

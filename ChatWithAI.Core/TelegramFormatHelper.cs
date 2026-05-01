@@ -6,6 +6,17 @@ namespace ChatWithAI.Core
 {
     public static class TelegramFormatHelper
     {
+        private static readonly HashSet<string> AllowedTelegramTags = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "b", "strong",
+            "i", "em",
+            "u", "ins",
+            "s", "strike", "del",
+            "a",
+            "code",
+            "pre"
+        };
+
         private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
             .UseEmphasisExtras()
             .UseAutoLinks()
@@ -13,6 +24,8 @@ namespace ChatWithAI.Core
             .Build();
 
         private static readonly Regex MultipleNewLinesRegex = new(@"\n{3,}", RegexOptions.Compiled);
+        private static readonly Regex HtmlTagRegex = new(@"</?([a-zA-Z0-9]+)(?:\s+[^>]*?)?/?>", RegexOptions.Compiled);
+        private static readonly Regex HrefRegex = new("""href\s*=\s*(["'])(.*?)\1""", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         public static string ConvertToTelegramHtml(string markdown)
         {
@@ -51,10 +64,47 @@ namespace ChatWithAI.Core
             sb.Replace("</sup>", "");
             sb.Replace("<sub>", "");
             sb.Replace("</sub>", "");
+            sb.Replace("<hr>", "\n────────\n");
+            sb.Replace("<hr />", "\n────────\n");
+            sb.Replace("<hr/>", "\n────────\n");
 
-            var result = sb.ToString().Trim();
+            var result = SanitizeTelegramHtml(sb.ToString()).Trim();
 
             return MultipleNewLinesRegex.Replace(result, "\n\n");
+        }
+
+        private static string SanitizeTelegramHtml(string html)
+        {
+            if (string.IsNullOrWhiteSpace(html)) return string.Empty;
+
+            return HtmlTagRegex.Replace(html, static match =>
+            {
+                var tagName = match.Groups[1].Value;
+                if (!AllowedTelegramTags.Contains(tagName))
+                {
+                    return string.Empty;
+                }
+
+                var isClosing = match.Value.StartsWith("</", StringComparison.Ordinal);
+                if (isClosing)
+                {
+                    return $"</{tagName.ToLowerInvariant()}>";
+                }
+
+                if (tagName.Equals("a", StringComparison.OrdinalIgnoreCase))
+                {
+                    var hrefMatch = HrefRegex.Match(match.Value);
+                    if (!hrefMatch.Success)
+                    {
+                        return string.Empty;
+                    }
+
+                    var href = hrefMatch.Groups[2].Value;
+                    return $"<a href=\"{href}\">";
+                }
+
+                return $"<{tagName.ToLowerInvariant()}>";
+            });
         }
     }
 }

@@ -506,6 +506,30 @@ public class ChatBatchExecutorLoadTests
         Log("TEST PASSED");
     }
 
+    [Fact]
+    public async Task CommandAndMessageInSameBatch_ResetLikeCommand_DoesNotAutoRequestResponse()
+    {
+        var mockChat = new ResetTrackingMockChat();
+        using var executor = new ChatBatchExecutor(mockChat, null, _mockActionProcessor, _mockLogger);
+        var chatId = mockChat.Id;
+
+        var batch = new List<IChatEvent>
+        {
+            new EventChatCommand(chatId, "1", "user", new ResetLikeCommand(), new ChatMessage(), string.Empty),
+            new EventChatMessage(
+                chatId,
+                "2",
+                "user",
+                new ChatMessage([new TextContentItem { Text = "hello" }], MessageRole.eRoleUser))
+        };
+
+        await executor.ExecuteBatch(chatId, batch, CancellationToken.None);
+
+        Assert.Equal(1, mockChat.ResetCount);
+        Assert.Equal(1, mockChat.AddedMessages.Count);
+        Assert.Equal(0, mockChat.DoResponseCount);
+    }
+
     #region Helper Methods
 
     private static List<IChatEvent> CreateMessageEvents(string chatId, int batchIndex, int count)
@@ -637,6 +661,54 @@ public class ChatBatchExecutorLoadTests
             await _canFinish.Task.WaitAsync(_ct);
             _order.Enqueue(_name);
         }
+    }
+
+    private class ResetLikeCommand : IChatCommand
+    {
+        public string Name => "start";
+        public bool IsAdminOnlyCommand => false;
+
+        public async Task Execute(IChat chat, ChatMessage msg, CancellationToken ct = default)
+        {
+            await chat.Reset();
+        }
+    }
+
+    private sealed class ResetTrackingMockChat : IChat
+    {
+        public string Id { get; } = Guid.NewGuid().ToString();
+        public ConcurrentBag<ChatMessage> AddedMessages { get; } = [];
+        public int DoResponseCount;
+        public int ResetCount;
+
+        public ChatMode GetMode() => new();
+        public Task SetMode(ChatMode mode) => Task.CompletedTask;
+
+        public Task Reset()
+        {
+            Interlocked.Increment(ref ResetCount);
+            return Task.CompletedTask;
+        }
+
+        public Task AddMessages(List<ChatMessage> messages)
+        {
+            foreach (var msg in messages)
+            {
+                AddedMessages.Add(msg);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task DoResponseToLastMessage(CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            Interlocked.Increment(ref DoResponseCount);
+            return Task.CompletedTask;
+        }
+
+        public Task ContinueLastResponse(CancellationToken ct) => Task.CompletedTask;
+        public Task RegenerateLastResponse(CancellationToken ct) => Task.CompletedTask;
     }
 
     #endregion

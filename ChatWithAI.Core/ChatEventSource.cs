@@ -384,7 +384,7 @@ namespace ChatWithAI.Core
             logger?.LogErrorMessage($"Polling error: {exception.Message}");
             logger?.LogException(exception);
 
-            _ = RequestRestartAsync("Polling error", exception);
+            logger?.LogDebugMessage("Polling error handled without forced restart. Waiting for the receiver to recover.");
 
             return Task.CompletedTask;
         }

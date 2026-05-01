@@ -10,7 +10,7 @@ namespace ChatWithAI.Core.StateMachine
         private readonly IChatInternal _chat;
         private readonly ILogger? _logger;
         private readonly SemaphoreSlim _transitionLock = new(1, 1);
-        private readonly Queue<Func<Task>> _pendingTriggers = new();
+        private readonly Queue<PendingTrigger> _pendingTriggers = new();
 
         // Parameterized triggers
         private readonly StateMachine<ChatState, ChatTrigger>.TriggerWithParameters<AddMessagesContext> _addMessagesTrigger;
@@ -209,7 +209,7 @@ namespace ChatWithAI.Core.StateMachine
         public void EnqueueTrigger(ChatTrigger trigger)
         {
             _logger?.LogDebugMessage($"Chat {_chat.Id}: Enqueuing trigger {trigger}");
-            _pendingTriggers.Enqueue(() => _machine.FireAsync(trigger));
+            _pendingTriggers.Enqueue(new PendingTrigger(trigger, () => _machine.FireAsync(trigger)));
         }
 
         /// <summary>
@@ -218,15 +218,21 @@ namespace ChatWithAI.Core.StateMachine
         public void EnqueueTrigger<TContext>(ChatTrigger trigger, TContext context) where TContext : TriggerContext
         {
             _logger?.LogDebugMessage($"Chat {_chat.Id}: Enqueuing trigger {trigger} with context");
-            _pendingTriggers.Enqueue(() => FireContextAsync(trigger, context));
+            _pendingTriggers.Enqueue(new PendingTrigger(trigger, () => FireContextAsync(trigger, context)));
         }
 
         private async Task ProcessPendingTriggersAsync()
         {
             while (_pendingTriggers.TryDequeue(out var pendingTrigger))
             {
-                _logger?.LogDebugMessage($"Chat {_chat.Id}: Processing pending trigger");
-                await pendingTrigger().ConfigureAwait(false);
+                if (!_machine.CanFire(pendingTrigger.Trigger))
+                {
+                    _logger?.LogDebugMessage($"Chat {_chat.Id}: Skipping pending trigger {pendingTrigger.Trigger} - not permitted in state {_machine.State}");
+                    continue;
+                }
+
+                _logger?.LogDebugMessage($"Chat {_chat.Id}: Processing pending trigger {pendingTrigger.Trigger}");
+                await pendingTrigger.Execute().ConfigureAwait(false);
             }
         }
 
@@ -382,5 +388,7 @@ namespace ChatWithAI.Core.StateMachine
             _logger?.LogDebugMessage($"Chat {_chat.Id}: StateMachine disposed");
             GC.SuppressFinalize(this);
         }
+
+        private sealed record PendingTrigger(ChatTrigger Trigger, Func<Task> Execute);
     }
 }

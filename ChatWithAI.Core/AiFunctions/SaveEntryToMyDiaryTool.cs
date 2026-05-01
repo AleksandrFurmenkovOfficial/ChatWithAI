@@ -20,7 +20,16 @@ namespace ChatWithAI.Core.AiFunctions
 
         public string GetDescription()
         {
-            return "This function enables you to create a new entry (record) in your personal diary. It saves data as structured JSON.";
+            return @"This is your user diary. As you interact with them, you edit and expand it, remove irrelevant information, consolidate certain points, and write notes.\
+You can't directly ask the user to collect data for your diary; you can only indirectly note certain facts and update it as the conversation progresses.
+The user diary format is below. BUT keep in mind, only BULK update (you should send full text with chages) each time is supported.
+
+1. User name:
+2. Age:
+3. Gender:
+4. Location:
+5. Psychological portrait:
+5. Facts about the user (they don't have to be explicitly disclosed to the user, but I take them into account when making important decisions):";
         }
 
         public List<Parameter> GetParameters()
@@ -30,7 +39,7 @@ namespace ChatWithAI.Core.AiFunctions
                 new Parameter(
                     ParamType.eString,
                     "diary_entry",
-                    "The diary entry to be recorded, encompassing your plans, facts, thoughts, reasoning, conjectures, and impressions.",
+                    "The bulk diary entry to be recorded.",
                     true
                 )
             ];
@@ -63,25 +72,7 @@ namespace ChatWithAI.Core.AiFunctions
 
             // 3. Сериализация в строку
             string jsonLine = JsonSerializer.Serialize(entryData, s_jsonOptions);
-
-            // 4. Чтение существующих записей и применение LIFO-вытеснения
-            string existingContent = await memoryStorage.GetContent(userId, api.AiName, cancellationToken).ConfigureAwait(false);
-            var entries = existingContent
-                .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
-                .ToList();
-
-            // 5. Если записей >= MaxEntries, удаляем самую старую (первую)
-            while (entries.Count >= MaxEntries)
-            {
-                entries.RemoveAt(0);
-            }
-
-            // 6. Добавляем новую запись
-            entries.Add(jsonLine);
-
-            // 7. Сохранение всех записей
-            string newContent = string.Join(Environment.NewLine, entries) + Environment.NewLine;
-            await memoryStorage.SetContent(userId, api.AiName, newContent, cancellationToken).ConfigureAwait(false);
+            await memoryStorage.SetContent(userId, api.AiName, jsonLine, cancellationToken).ConfigureAwait(false);
 
             return new AiFunctionResult("The diary entry has been successfully recorded as a JSON object.");
         }

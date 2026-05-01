@@ -386,14 +386,18 @@ namespace ChatWithAI.Providers.Google
                 request.SystemInstruction = systemInstruction;
             }
 
-            // Add tools - Note: Gemini API doesn't support google_search + function_declarations together
+            // Add tools and enable built-in tool context circulation when functions are available.
             if (enableFunctions)
             {
                 var functionsJson = aiFunctionsManager.Representation();
                 var functionDeclarations = JsonConvert.DeserializeObject<List<GeminiFunctionDeclaration>>(functionsJson, s_responseJsonSettings);
                 if (functionDeclarations != null && functionDeclarations.Count > 0)
                 {
-                    request.Tools = [new GeminiTool { FunctionDeclarations = functionDeclarations }];
+                    request.Tools = [new GeminiTool { FunctionDeclarations = functionDeclarations, GoogleSearch = new Dictionary<string, object>() }];
+                    request.ToolConfig = new GeminiToolConfig
+                    {
+                        IncludeServerSideToolInvocations = true
+                    };
                 }
             }
             else

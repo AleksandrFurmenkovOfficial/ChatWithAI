@@ -24,7 +24,7 @@
                     Temperature = config.Temperature,
                     ThinkingLevel = config.ThinkingLevel,
                     MediaResolution = config.MediaResolution,
-                    Model = "gemini-3-flash-preview"
+                    Model = "gemini-3.5-flash"
                 };
 
                 return new GeminiAgent(aiName, systemMessage, enableFunctions, newConfig, aiImagePainter, new GeminiFunctionsManager(memoryStorage, httpClientFactory), httpClientFactory, logger);

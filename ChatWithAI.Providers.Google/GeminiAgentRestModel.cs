@@ -71,12 +71,7 @@ namespace ChatWithAI.Providers.Google
 
     internal sealed class GeminiToolConfig
     {
-        public GeminiFunctionCallingConfig? FunctionCallingConfig { get; set; }
-    }
-
-    internal sealed class GeminiFunctionCallingConfig
-    {
-        public string? Mode { get; set; }
+        public bool? IncludeServerSideToolInvocations { get; set; }
     }
 
     internal sealed class GeminiGenerationConfig

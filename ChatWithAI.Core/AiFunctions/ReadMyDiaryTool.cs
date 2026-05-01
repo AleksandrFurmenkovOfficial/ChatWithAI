@@ -9,7 +9,7 @@
 
         public string GetDescription()
         {
-            return "This have to be the first function called in a new dialogue! Why? It enables you to read your diary.";
+            return "This have to be the first function called in a new dialogue! Why? It enables you to read your diary about your user.";
         }
 
         public List<Parameter> GetParameters()
