@@ -31,8 +31,8 @@
     <PackageReference Include="Markdig" Version="1.3.2" />
     <PackageReference Include="MarkdownTelegram" Version="1.0.2" />
     <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.61.0" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.9" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.9" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
